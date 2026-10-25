@@ -1,0 +1,13 @@
+# https://dart.dev/guides/libraries/private-files
+# Created by `dart pub`
+.dart_tool/
+
+# IDE / local
+.idea/
+*.iml
+.flutter-plugins-dependencies
+build/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
