@@ -1,0 +1,65 @@
+name: Deploy web app
+
+# Publishes the Flutter web version to GitHub Pages (free).
+# Run it by hand (Actions > Deploy web app > Run workflow) or it runs after every push to main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Check required settings
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          [ -n "$API_BASE_URL" ] || { echo "Set repository VARIABLE API_BASE_URL (https://...)"; exit 1; }
+          case "$API_BASE_URL" in https://*) ;; *) echo "API_BASE_URL must start with https://"; exit 1;; esac
+
+      - run: flutter pub get
+
+      - name: Build web
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          flutter build web --release \
+            --base-href "/${{ github.event.repository.name }}/" \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      - name: Add privacy policy page and 404 fallback
+        run: |
+          cp docs/privacy-policy.html build/web/privacy-policy.html
+          cp build/web/index.html build/web/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

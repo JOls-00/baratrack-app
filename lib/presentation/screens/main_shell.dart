@@ -146,7 +146,10 @@ class _MainShellState extends State<MainShell> {
               children: [
                 _buildTopBar(context, user, isMobile),
                 Expanded(
-                  child: widget.child ?? const SizedBox.shrink(),
+                  child: SafeArea(
+                    top: false, // the top bar already handles the status bar
+                    child: widget.child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ],
             ),
@@ -159,10 +162,14 @@ class _MainShellState extends State<MainShell> {
   Widget _buildTopBar(BuildContext context, user, bool isMobile) {
     final theme = Theme.of(context);
     final isResident = user?.role == 'Resident';
+    final width = MediaQuery.of(context).size.width;
+    final topInset = MediaQuery.of(context).padding.top; // status bar height (phones draw edge to edge)
+    final compact = width < 600;
+    final tiny = width < 400;
 
     return Container(
-      height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: 70 + topInset,
+      padding: EdgeInsets.fromLTRB(compact ? 4 : 24, topInset, compact ? 4 : 24, 0),
       decoration: BoxDecoration(
         color: theme.cardColor,
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
@@ -170,20 +177,33 @@ class _MainShellState extends State<MainShell> {
       child: Row(
         children: [
           if (isMobile) IconButton(icon: const Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
-          Text(
-              'BaraTrack',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: theme.colorScheme.primary, letterSpacing: -0.5)
-          ),
-          const SizedBox(width: 48),
-
-          if (isResident)
-            ElevatedButton.icon(
-              onPressed: () => context.push('/file-complaint'),
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text('New Complaint', style: TextStyle(fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    'BaraTrack',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: compact ? 19 : 22, color: theme.colorScheme.primary, letterSpacing: -0.5),
+                  ),
+                ),
+                SizedBox(width: compact ? 8 : 48),
+                if (isResident)
+                  (tiny
+                      ? IconButton.filled(
+                          tooltip: 'New Complaint',
+                          onPressed: () => context.push('/file-complaint'),
+                          icon: const Icon(Icons.add),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: () => context.push('/file-complaint'),
+                          icon: const Icon(Icons.add, size: 20),
+                          label: Text(compact ? 'New' : 'New Complaint', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        )),
+              ],
             ),
-
-          const Spacer(),
+          ),
           Builder(builder: (context) {
             final unread = context.watch<NotificationProvider>().unreadCount;
             return IconButton(
@@ -199,8 +219,9 @@ class _MainShellState extends State<MainShell> {
               },
             );
           }),
-          const SizedBox(width: 16),
+          SizedBox(width: compact ? 2 : 16),
           _buildUserMenu(context, user),
+          SizedBox(width: compact ? 6 : 0),
         ],
       ),
     );
@@ -208,35 +229,61 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildUserMenu(BuildContext context, user) {
     final theme = Theme.of(context);
+    final String name = (user?.name as String?) ?? 'User';
+    final String role = (user?.role as String?) ?? 'Role';
+    final avatar = CircleAvatar(
+      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+      radius: 18,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 12),
+      ),
+    );
+    final profileRoute = role == 'Resident' ? '/profile' : '/settings';
+
+    // Phones and narrow windows: tapping the avatar opens the account menu.
+    if (MediaQuery.of(context).size.width <= 700) {
+      return PopupMenuButton<String>(
+        tooltip: 'Account',
+        child: Padding(padding: const EdgeInsets.all(6), child: avatar),
+        itemBuilder: (context) => [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface)),
+                Text(role, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem<String>(child: const Text('My Profile'), onTap: () => context.go(profileRoute)),
+          PopupMenuItem<String>(child: const Text('Logout'), onTap: () => context.read<AuthProvider>().logout()),
+        ],
+      );
+    }
+
     return Row(
       children: [
-        CircleAvatar(
-          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-          radius: 18,
-          child: Text(user?.name[0] ?? 'U', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+        avatar,
+        const SizedBox(width: 12),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(role, style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 11)),
+          ],
         ),
-        if (MediaQuery.of(context).size.width > 700) ...[
-          const SizedBox(width: 12),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(user?.name ?? 'User', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              Text(user?.role ?? 'Role', style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 11)),
-            ],
-          ),
-          const SizedBox(width: 4),
-          PopupMenuButton(
-            icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                child: const Text('My Profile'),
-                onTap: () => context.go(user?.role == 'Resident' ? '/profile' : '/settings'),
-              ),
-              PopupMenuItem(child: const Text('Logout'), onTap: () => context.read<AuthProvider>().logout()),
-            ],
-          ),
-        ]
+        const SizedBox(width: 4),
+        PopupMenuButton(
+          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+          itemBuilder: (context) => [
+            PopupMenuItem(child: const Text('My Profile'), onTap: () => context.go(profileRoute)),
+            PopupMenuItem(child: const Text('Logout'), onTap: () => context.read<AuthProvider>().logout()),
+          ],
+        ),
       ],
     );
   }
@@ -244,7 +291,7 @@ class _MainShellState extends State<MainShell> {
   Widget _buildNotificationDrawer(BuildContext context, bool isResident) {
     final theme = Theme.of(context);
     return Drawer(
-      width: 400,
+      width: (MediaQuery.of(context).size.width * 0.9).clamp(280.0, 400.0).toDouble(),
       child: SafeArea(
         child: Consumer<NotificationProvider>(
           builder: (context, provider, _) {
@@ -343,6 +390,15 @@ class _MainShellState extends State<MainShell> {
                   _onItemTapped(i, context, isResident);
                 },
               ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Sign out', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.read<AuthProvider>().logout();
+              },
+            ),
           ],
         ),
       ),
