@@ -7,6 +7,7 @@ import '../../presentation/screens/auth/pending_approval_screen.dart';
 import '../../presentation/screens/auth/otp_verification_screen.dart';
 import '../../presentation/screens/auth/forgot_password_screen.dart';
 import '../../presentation/screens/portal/portal_pages.dart';
+import '../../presentation/screens/calendar/calendar_screen.dart';
 import '../../presentation/screens/dashboard/dashboard_view.dart';
 import '../../presentation/screens/dashboard/user_dashboard_view.dart';
 import '../../presentation/screens/cases/case_list_screen.dart';
@@ -104,6 +105,7 @@ class AppRouter {
               return const DashboardView();
             },
           ),
+          GoRoute(path: '/calendar', builder: (context, state) => const CalendarScreen()),
           // Admin Routes
           GoRoute(path: '/complaints-inbox', builder: (context, state) => const ComplaintsInboxScreen()),
           GoRoute(

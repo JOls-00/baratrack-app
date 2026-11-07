@@ -57,26 +57,28 @@ class _MainShellState extends State<MainShell> {
 
     if (isResident) {
       if (location == '/') return 0;
-      if (location.startsWith('/my-complaints')) return 1;
-      if (location.startsWith('/my-hearings')) return 2;
-      if (location.startsWith('/my-documents')) return 3;
-      if (location.startsWith('/notifications')) return 4;
-      if (location.startsWith('/app-announcements')) return 5;
-      if (location.startsWith('/profile')) return 6;
-      if (location.startsWith('/settings')) return 7;
+      if (location.startsWith('/calendar')) return 1;
+      if (location.startsWith('/my-complaints')) return 2;
+      if (location.startsWith('/my-hearings')) return 3;
+      if (location.startsWith('/my-documents')) return 4;
+      if (location.startsWith('/notifications')) return 5;
+      if (location.startsWith('/app-announcements')) return 6;
+      if (location.startsWith('/profile')) return 7;
+      if (location.startsWith('/settings')) return 8;
       return 0;
     }
 
     if (location == '/') return 0;
-    if (location.startsWith('/complaints-inbox')) return 1;
-    if (location.startsWith('/cases')) return 2;
-    if (location.startsWith('/residents')) return 3;
-    if (location.startsWith('/hearings-mgmt')) return 4;
-    if (location.startsWith('/app-announcements')) return 5;
-    if (location.startsWith('/reports')) return 6;
-    if (location.startsWith('/incident-map')) return 7;
-    if (location.startsWith('/users')) return 8;
-    if (location.startsWith('/settings')) return 9;
+    if (location.startsWith('/calendar')) return 1;
+    if (location.startsWith('/complaints-inbox')) return 2;
+    if (location.startsWith('/cases')) return 3;
+    if (location.startsWith('/residents')) return 4;
+    if (location.startsWith('/hearings-mgmt')) return 5;
+    if (location.startsWith('/app-announcements')) return 6;
+    if (location.startsWith('/reports')) return 7;
+    if (location.startsWith('/incident-map')) return 8;
+    if (location.startsWith('/users')) return 9;
+    if (location.startsWith('/settings')) return 10;
     return 0;
   }
 
@@ -84,26 +86,28 @@ class _MainShellState extends State<MainShell> {
     if (isResident) {
       switch (index) {
         case 0: context.go('/'); break;
-        case 1: context.go('/my-complaints'); break;
-        case 2: context.go('/my-hearings'); break;
-        case 3: context.go('/my-documents'); break;
-        case 4: context.go('/notifications'); break;
-        case 5: context.go('/app-announcements'); break;
-        case 6: context.go('/profile'); break;
-        case 7: context.go('/settings'); break;
+        case 1: context.go('/calendar'); break;
+        case 2: context.go('/my-complaints'); break;
+        case 3: context.go('/my-hearings'); break;
+        case 4: context.go('/my-documents'); break;
+        case 5: context.go('/notifications'); break;
+        case 6: context.go('/app-announcements'); break;
+        case 7: context.go('/profile'); break;
+        case 8: context.go('/settings'); break;
       }
     } else {
       switch (index) {
         case 0: context.go('/'); break;
-        case 1: context.go('/complaints-inbox'); break;
-        case 2: context.go('/cases'); break;
-        case 3: context.go('/residents'); break;
-        case 4: context.go('/hearings-mgmt'); break;
-        case 5: context.go('/app-announcements'); break;
-        case 6: context.go('/reports'); break;
-        case 7: context.go('/incident-map'); break;
-        case 8: context.go('/users'); break;
-        case 9: context.go('/settings'); break;
+        case 1: context.go('/calendar'); break;
+        case 2: context.go('/complaints-inbox'); break;
+        case 3: context.go('/cases'); break;
+        case 4: context.go('/residents'); break;
+        case 5: context.go('/hearings-mgmt'); break;
+        case 6: context.go('/app-announcements'); break;
+        case 7: context.go('/reports'); break;
+        case 8: context.go('/incident-map'); break;
+        case 9: context.go('/users'); break;
+        case 10: context.go('/settings'); break;
       }
     }
   }
@@ -407,6 +411,7 @@ class _MainShellState extends State<MainShell> {
 
   List<NavigationRailDestination> _buildResidentDestinations() => const [
     NavigationRailDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: Text('Dashboard')),
+    NavigationRailDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: Text('Calendar')),
     NavigationRailDestination(icon: Icon(Icons.assignment_outlined), selectedIcon: Icon(Icons.assignment), label: Text('My Complaints')),
     NavigationRailDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: Text('My Hearings')),
     NavigationRailDestination(icon: Icon(Icons.file_present_outlined), selectedIcon: Icon(Icons.file_present), label: Text('My Documents')),
@@ -418,6 +423,7 @@ class _MainShellState extends State<MainShell> {
 
   List<NavigationRailDestination> _buildAdminDestinations() => const [
     NavigationRailDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: Text('Dashboard')),
+    NavigationRailDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: Text('Calendar')),
     NavigationRailDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox), label: Text('Complaints Inbox')),
     NavigationRailDestination(icon: Icon(Icons.folder_shared_outlined), selectedIcon: Icon(Icons.folder_shared), label: Text('Blotter Records')),
     NavigationRailDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people), label: Text('Residents')),
