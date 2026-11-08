@@ -122,13 +122,14 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final narrow = MediaQuery.of(context).size.width < 600;
 
     if (_isInitialLoad) {
       return const Center(child: CircularProgressIndicator());
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32.0),
+      padding: EdgeInsets.all(narrow ? 12.0 : 32.0),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -141,27 +142,23 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
               
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(32.0),
+                  padding: EdgeInsets.all(narrow ? 16.0 : 32.0),
                   child: Form(
                     key: _formKey,
                     child: Column(
                       children: [
                         _buildAvatarSection(theme),
                         const SizedBox(height: 40),
-                        Row(
-                          children: [
-                            Expanded(child: _buildTextField('Full Name', _nameController, Icons.person_outline, (v) => Validators.validateRequired(v, 'Name'))),
-                            const SizedBox(width: 24),
-                            Expanded(child: _buildTextField('Email Address', _emailController, Icons.email_outlined, Validators.validateEmail)),
-                          ],
+                        _pair(
+                          narrow,
+                          _buildTextField('Full Name', _nameController, Icons.person_outline, (v) => Validators.validateRequired(v, 'Name')),
+                          _buildTextField('Email Address', _emailController, Icons.email_outlined, Validators.validateEmail),
                         ),
                         const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(child: _buildTextField('Contact Number', _phoneController, Icons.phone_outlined, (v) => Validators.validateRequired(v, 'Phone'))),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: Column(
+                        _pair(
+                          narrow,
+                          _buildTextField('Contact Number', _phoneController, Icons.phone_outlined, (v) => Validators.validateRequired(v, 'Phone')),
+                          Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text('Date of Birth', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
@@ -189,8 +186,6 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
                         ),
                         const SizedBox(height: 24),
                         _buildTextField('Home Address / Barangay Info', _addressController, Icons.location_on_outlined, (v) => Validators.validateRequired(v, 'Address')),
@@ -217,6 +212,15 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Two fields side by side on wide screens, stacked on phones.
+  Widget _pair(bool narrow, Widget a, Widget b) {
+    if (narrow) return Column(children: [a, const SizedBox(height: 20), b]);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [Expanded(child: a), const SizedBox(width: 24), Expanded(child: b)],
     );
   }
 

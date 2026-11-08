@@ -155,6 +155,7 @@ class BarangayApp extends StatelessWidget {
     final activeMode = isLoggedIn ? themeProvider.themeMode : ThemeMode.light;
 
     return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
       title: 'BaraTrack',
       theme: AppTheme.getTheme(activeCombo, primaryOverride: brandPrimary),
       themeMode: activeMode,

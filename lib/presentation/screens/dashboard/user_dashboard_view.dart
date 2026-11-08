@@ -15,6 +15,8 @@ class UserDashboardView extends StatefulWidget {
 }
 
 class _UserDashboardViewState extends State<UserDashboardView> {
+  bool _narrow = false; // true on phones: cards stack in one column
+
   @override
   void initState() {
     super.initState();
@@ -27,6 +29,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
 
   @override
   Widget build(BuildContext context) {
+    _narrow = MediaQuery.of(context).size.width < 700;
     final user = context.watch<AuthProvider>().user;
     final theme = Theme.of(context);
     final complaintProvider = context.watch<ComplaintProvider>();
@@ -49,40 +52,56 @@ class _UserDashboardViewState extends State<UserDashboardView> {
       onRefresh: () => context.read<ComplaintProvider>().fetchMyComplaints(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(32.0),
+        padding: EdgeInsets.all(_narrow ? 14.0 : 32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeroHeader(context, theme, user?.name ?? 'Resident'),
-            const SizedBox(height: 32),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      if (activeComplaint != null)
-                        _buildTimelineCard(theme, activeComplaint)
-                      else
-                        _buildNoActiveCaseCard(theme),
-                      const SizedBox(height: 24),
-                      _buildDocumentsPreview(theme),
-                    ],
+            SizedBox(height: _narrow ? 16 : 32),
+            if (_narrow)
+              Column(
+                children: [
+                  if (activeComplaint != null)
+                    _buildTimelineCard(theme, activeComplaint)
+                  else
+                    _buildNoActiveCaseCard(theme),
+                  const SizedBox(height: 16),
+                  _buildEmergencyContacts(theme),
+                  const SizedBox(height: 16),
+                  _buildProfileCompleteness(theme, user?.residentId != null),
+                  const SizedBox(height: 16),
+                  _buildDocumentsPreview(theme),
+                ],
+              )
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        if (activeComplaint != null)
+                          _buildTimelineCard(theme, activeComplaint)
+                        else
+                          _buildNoActiveCaseCard(theme),
+                        const SizedBox(height: 24),
+                        _buildDocumentsPreview(theme),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildEmergencyContacts(theme),
-                      const SizedBox(height: 24),
-                      _buildProfileCompleteness(theme, user?.residentId != null),
-                    ],
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildEmergencyContacts(theme),
+                        const SizedBox(height: 24),
+                        _buildProfileCompleteness(theme, user?.residentId != null),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),
@@ -90,55 +109,56 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   }
 
   Widget _buildHeroHeader(BuildContext context, ThemeData theme, String name) {
+    final onP = AppTheme.onColor(theme.colorScheme.primary);
+    final texts = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Mabuhay, $name!', style: TextStyle(fontSize: _narrow ? 24 : 32, fontWeight: FontWeight.w900, color: onP)),
+        const SizedBox(height: 8),
+        Text('Welcome to your Barangay Resident Portal.', style: TextStyle(color: onP.withValues(alpha: 0.85), fontSize: _narrow ? 14 : 16)),
+      ],
+    );
+    final button = ElevatedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FileComplaintScreen()),
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: onP,
+        foregroundColor: theme.colorScheme.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      ),
+      child: const Text('File New Complaint', style: TextStyle(fontWeight: FontWeight.bold)),
+    );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.all(_narrow ? 20 : 40),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [theme.colorScheme.primary, AppTheme.deepen(theme.colorScheme.primary, 0.3)],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(_narrow ? 18 : 24),
         boxShadow: [
           BoxShadow(color: theme.colorScheme.primary.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 12))
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
+      child: _narrow
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Mabuhay, $name!', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppTheme.onColor(theme.colorScheme.primary))),
-                const SizedBox(height: 8),
-                Text('Welcome to your Barangay Resident Portal.', style: TextStyle(color: AppTheme.onColor(theme.colorScheme.primary).withValues(alpha: 0.85), fontSize: 16)),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FileComplaintScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.onColor(theme.colorScheme.primary),
-              foregroundColor: theme.colorScheme.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-            ),
-            child: const Text('File New Complaint', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+              children: [texts, const SizedBox(height: 16), SizedBox(width: double.infinity, child: button)],
+            )
+          : Row(children: [Expanded(child: texts), button]),
     );
   }
 
   Widget _buildNoActiveCaseCard(ThemeData theme) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(40.0),
+        padding: EdgeInsets.all(_narrow ? 20.0 : 40.0),
         child: Column(
           children: [
             Icon(Icons.assignment_turned_in_outlined, size: 64, color: theme.disabledColor),
@@ -156,7 +176,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: EdgeInsets.all(_narrow ? 16.0 : 32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -204,7 +224,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   Widget _buildEmergencyContacts(ThemeData theme) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(_narrow ? 16.0 : 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -229,7 +249,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   Widget _buildProfileCompleteness(ThemeData theme, bool isRegistered) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(_narrow ? 16.0 : 24.0),
         child: Column(
           children: [
             const Text('Legal Verification', style: TextStyle(fontWeight: FontWeight.bold)),
