@@ -33,6 +33,9 @@ import 'presentation/providers/branding_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/widgets/session_reset_binder.dart';
 
+import 'data/repositories/version_repository.dart';
+import 'presentation/providers/version_provider.dart';
+
 void main() {
   final apiClient = ApiClient();
 
@@ -78,6 +81,9 @@ void main() {
         ),
         ProxyProvider<ApiClient, NotificationRepository>(
           update: (_, client, __) => NotificationRepository(client),
+        ),
+        ProxyProvider<ApiClient, VersionRepository>(
+          update: (_, client, __) => VersionRepository(client),
         ),
         ChangeNotifierProxyProvider3<AuthRepository, ResidentRepository, UserRepository, AuthProvider>(
           create: (context) => AuthProvider(
@@ -132,6 +138,9 @@ void main() {
         ),
         ChangeNotifierProvider(
           create: (context) => BrandingProvider(context.read<BrandingRepository>())..load(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => VersionProvider(context.read<VersionRepository>()),
         ),
       ],
       child: const BarangayApp(),

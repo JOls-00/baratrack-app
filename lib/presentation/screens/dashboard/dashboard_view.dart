@@ -34,6 +34,7 @@ class _DashboardViewState extends State<DashboardView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 700;
     final caseProvider = context.watch<CaseProvider>();
     final reportsProvider = context.watch<ReportsProvider>();
     final residentProvider = context.watch<ResidentProvider>();
@@ -54,25 +55,30 @@ class _DashboardViewState extends State<DashboardView> {
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(32.0),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(context, theme),
-            const SizedBox(height: 28),
+            _buildHeader(context, theme, isMobile),
+            const SizedBox(height: 24),
             if (caseProvider.isLoading && cases.isEmpty)
               const Center(child: CircularProgressIndicator())
             else
               _buildMetricGrid(context, theme, cases, hearings, residents),
-            const SizedBox(height: 32),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: _buildUrgentActions(context, theme, cases)),
-                const SizedBox(width: 24),
-                Expanded(child: _buildAnalyticsShell(context, theme, reportsProvider)),
-              ],
-            ),
+            const SizedBox(height: 28),
+            if (isMobile) ...[
+              _buildUrgentActions(context, theme, cases),
+              const SizedBox(height: 20),
+              _buildAnalyticsShell(context, theme, reportsProvider),
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 2, child: _buildUrgentActions(context, theme, cases)),
+                  const SizedBox(width: 24),
+                  Expanded(child: _buildAnalyticsShell(context, theme, reportsProvider)),
+                ],
+              ),
           ],
         ),
       ),
@@ -85,29 +91,31 @@ class _DashboardViewState extends State<DashboardView> {
     final settledCount = cases.where((e) => e.status == 'Settled').length;
 
     return LayoutBuilder(builder: (context, c) {
+      final isCompact = c.maxWidth < 600;
       return GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: c.maxWidth > 1400 ? 6 : (c.maxWidth > 800 ? 3 : 2),
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          mainAxisExtent: 104,
+          mainAxisSpacing: isCompact ? 10 : 16,
+          crossAxisSpacing: isCompact ? 10 : 16,
+          mainAxisExtent: isCompact ? 92 : 104,
         ),
         children: [
-          _metric(theme, 'Total Cases', '${cases.length}', Icons.folder_outlined, AppTheme.burstBlue, () => context.go('/cases')),
-          _metric(theme, 'Pending', '$pendingCount', Icons.pending_outlined, AppTheme.burstOrange, () => context.go('/cases?status=Pending')),
-          _metric(theme, 'In Investigation', '$investigationCount', Icons.search, Colors.purple, () => context.go('/cases?status=Under Investigation')),
-          _metric(theme, 'Settled', '$settledCount', Icons.verified_outlined, AppTheme.laurelGreen, () => context.go('/cases?status=Settled')),
-          _metric(theme, 'Residents', '${residents.length}', Icons.people_outline, AppTheme.burstTeal, () => context.go('/residents')),
-          _metric(theme, 'Hearings', '${hearings.length}', Icons.gavel_outlined, context.brand, () => context.go('/hearings-mgmt')),
+          _metric(theme, 'Total Cases', '${cases.length}', Icons.folder_outlined, AppTheme.burstBlue, () => context.go('/cases'), isCompact),
+          _metric(theme, 'Pending', '$pendingCount', Icons.pending_outlined, AppTheme.burstOrange, () => context.go('/cases?status=Pending'), isCompact),
+          _metric(theme, 'In Investigation', '$investigationCount', Icons.search, Colors.purple, () => context.go('/cases?status=Under Investigation'), isCompact),
+          _metric(theme, 'Settled', '$settledCount', Icons.verified_outlined, AppTheme.laurelGreen, () => context.go('/cases?status=Settled'), isCompact),
+          _metric(theme, 'Residents', '${residents.length}', Icons.people_outline, AppTheme.burstTeal, () => context.go('/residents'), isCompact),
+          _metric(theme, 'Hearings', '${hearings.length}', Icons.gavel_outlined, context.brand, () => context.go('/hearings-mgmt'), isCompact),
         ],
       );
     });
   }
 
-  Widget _metric(ThemeData t, String l, String v, IconData i, Color c, VoidCallback onTap) => Card(
+  Widget _metric(ThemeData t, String l, String v, IconData i, Color c, VoidCallback onTap, [bool isCompact = false]) => Card(
     clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isCompact ? 14 : 18)),
     child: InkWell(
       onTap: onTap,
       child: Container(
@@ -118,21 +126,26 @@ class _DashboardViewState extends State<DashboardView> {
             colors: [c.withValues(alpha: 0.14), c.withValues(alpha: 0.02)],
           ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 20),
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(14)),
-              child: Icon(i, color: AppTheme.onColor(c), size: 24),
+              width: isCompact ? 38 : 48,
+              height: isCompact ? 38 : 48,
+              decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(isCompact ? 10 : 14)),
+              child: Icon(i, color: AppTheme.onColor(c), size: isCompact ? 20 : 24),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: isCompact ? 10 : 16),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text(v, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, height: 1.1)),
+                Text(v, style: TextStyle(fontSize: isCompact ? 22 : 30, fontWeight: FontWeight.w800, height: 1.1)),
                 const SizedBox(height: 2),
-                Text(l, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.colorScheme.onSurface.withValues(alpha: 0.6))),
+                Text(
+                  l,
+                  style: TextStyle(fontSize: isCompact ? 11 : 13, fontWeight: FontWeight.w600, color: t.colorScheme.onSurface.withValues(alpha: 0.6)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ]),
             ),
           ],
@@ -141,45 +154,72 @@ class _DashboardViewState extends State<DashboardView> {
     ),
   );
 
-  Widget _buildHeader(BuildContext context, ThemeData theme) {
+  Widget _buildHeader(BuildContext context, ThemeData theme, [bool isMobile = false]) {
     final primary = theme.colorScheme.primary;
     final on = AppTheme.onColor(primary);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 32, vertical: isMobile ? 20 : 28),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [primary, AppTheme.deepen(primary, 0.3)],
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: primary.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 12))],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: primary.withValues(alpha: 0.25), blurRadius: 20, offset: const Offset(0, 8))],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(DateFormat('EEEE, MMMM d').format(DateTime.now()).toUpperCase(),
-                    style: TextStyle(color: on.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
-                const SizedBox(height: 6),
-                Text('Command Center', style: TextStyle(color: on, fontSize: 32, fontWeight: FontWeight.w900)),
+                    style: TextStyle(color: on.withValues(alpha: 0.75), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
                 const SizedBox(height: 4),
-                Text('Daily overview of barangay legal operations.', style: TextStyle(color: on.withValues(alpha: 0.85), fontSize: 15)),
+                Text('Command Center', style: TextStyle(color: on, fontSize: 24, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text('Daily overview of barangay legal operations.', style: TextStyle(color: on.withValues(alpha: 0.85), fontSize: 13)),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => context.go('/cases'),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('New Blotter Entry', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: on,
+                      foregroundColor: primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(DateFormat('EEEE, MMMM d').format(DateTime.now()).toUpperCase(),
+                          style: TextStyle(color: on.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                      const SizedBox(height: 6),
+                      Text('Command Center', style: TextStyle(color: on, fontSize: 32, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 4),
+                      Text('Daily overview of barangay legal operations.', style: TextStyle(color: on.withValues(alpha: 0.85), fontSize: 15)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () => context.go('/cases'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New Blotter Entry'),
+                  style: ElevatedButton.styleFrom(backgroundColor: on, foregroundColor: primary),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          ElevatedButton.icon(
-            onPressed: () => context.go('/cases'),
-            icon: const Icon(Icons.add),
-            label: const Text('New Blotter Entry'),
-            style: ElevatedButton.styleFrom(backgroundColor: on, foregroundColor: primary),
-          ),
-        ],
-      ),
     );
   }
 

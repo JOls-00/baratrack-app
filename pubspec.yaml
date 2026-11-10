@@ -37,5 +37,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # assets:
-  #   - assets/images/baratrack_logo.png
+  assets:
+    - assets/images/
+    - assets/images/seal.png

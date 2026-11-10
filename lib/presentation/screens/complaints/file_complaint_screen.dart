@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:dio/dio.dart' show DioException;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'location_picker.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/utils/validators.dart';
@@ -51,6 +53,68 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
   // Bumped on every keystroke so only the latest respondent search is used.
   int _searchToken = 0;
+  bool _hasDraftRestored = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDraft();
+  }
+
+  Future<void> _loadDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftStr = prefs.getString('complaint_offline_draft');
+      if (draftStr != null && draftStr.isNotEmpty) {
+        final draft = jsonDecode(draftStr) as Map<String, dynamic>;
+        setState(() {
+          _narrativeController.text = draft['narrative'] ?? '';
+          _locationController.text = draft['location'] ?? '';
+          if (_categories.contains(draft['category'])) {
+            _selectedCategory = draft['category'];
+          }
+          _respondentUnknown = draft['respondent_unknown'] == true;
+          _hasDraftRestored = true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveDraft({bool showNotice = true}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draft = {
+        'narrative': _narrativeController.text,
+        'location': _locationController.text,
+        'category': _selectedCategory,
+        'respondent_unknown': _respondentUnknown,
+        'saved_at': DateTime.now().toIso8601String(),
+      };
+      await prefs.setString('complaint_offline_draft', jsonEncode(draft));
+      if (showNotice && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Complaint draft saved offline safely!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _clearDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('complaint_offline_draft');
+      setState(() => _hasDraftRestored = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Offline draft cleared.')),
+        );
+      }
+    } catch (_) {}
+  }
 
   Future<Iterable<ResidentModel>> _searchRespondents(String text, int? currentResidentId) async {
     final query = text.trim();
@@ -185,6 +249,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           }
         }
 
+        await _clearDraft();
+
         if (mounted) {
           final messenger = ScaffoldMessenger.of(context);
           Navigator.pop(context);
@@ -211,7 +277,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           );
         }
       } catch (e) {
-        _showError(e is DioException ? (e.message ?? 'Something went wrong. Please try again.') : 'Error: ${e.toString()}');
+        await _saveDraft(showNotice: false);
+        _showError(e is DioException ? 'Connection issue. Your complaint was safely saved as an offline draft!' : 'Error: ${e.toString()}');
       } finally {
         if (mounted) setState(() => _isSubmitting = false);
       }
@@ -273,6 +340,32 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_hasDraftRestored)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_note, color: Colors.amber.shade900, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Restored from offline draft',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _clearDraft,
+                            child: const Text('Discard Draft', style: TextStyle(fontSize: 11, color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    ),
                   _buildSectionHeader('Respondent Selection'),
                   const SizedBox(height: 16),
                   CheckboxListTile(
@@ -404,6 +497,19 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       child: _isSubmitting 
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('Submit Complaint', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: _isSubmitting ? null : () => _saveDraft(showNotice: true),
+                      icon: const Icon(Icons.save_outlined, size: 18),
+                      label: const Text('Save as Offline Draft', style: TextStyle(fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

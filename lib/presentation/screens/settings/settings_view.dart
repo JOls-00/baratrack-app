@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../../config/app_constants.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/utils/validators.dart';
+import '../../providers/version_provider.dart';
 import 'branding_card.dart';
 import 'officials_card.dart';
 import 'faq_manager_card.dart';
@@ -64,6 +66,7 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final themeProvider = context.watch<ThemeProvider>();
     final narrow = MediaQuery.of(context).size.width < 600;
 
@@ -213,6 +216,58 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            _buildSectionHeader('App Version & Updates'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.system_update_alt, color: theme.colorScheme.primary, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('BaraTrack Mobile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Version ${AppConstants.appVersion} (Build ${AppConstants.buildNumber})',
+                            style: TextStyle(fontSize: 13, color: theme.textTheme.bodySmall?.color),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Consumer<VersionProvider>(
+                      builder: (context, vProvider, _) {
+                        return ElevatedButton.icon(
+                          onPressed: vProvider.isChecking
+                              ? null
+                              : () => vProvider.checkForUpdates(context: context, manual: true),
+                          icon: vProvider.isChecking
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.refresh, size: 16),
+                          label: Text(vProvider.isChecking ? 'Checking...' : 'Check Update'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),

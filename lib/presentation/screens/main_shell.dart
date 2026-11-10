@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
+import '../providers/version_provider.dart';
 import 'dashboard/dashboard_view.dart';
 import 'dashboard/user_dashboard_view.dart';
 import 'complaints/my_complaints_view.dart';
@@ -38,7 +39,10 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<NotificationProvider>().load();
+      if (mounted) {
+        context.read<NotificationProvider>().load();
+        context.read<VersionProvider>().checkForUpdates(context: context);
+      }
     });
     // Pick up new notifications every minute while the app is open.
     _notificationTimer = Timer.periodic(const Duration(seconds: 60), (_) {

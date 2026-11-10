@@ -109,37 +109,110 @@ class _ComplaintsInboxScreenState extends State<ComplaintsInboxScreen> {
                         final complaint = pendingComplaints[index];
                         return Card(
                           key: ValueKey(complaint.id),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.orange.withValues(alpha: 0.1),
-                              child: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                            ),
-                            title: Text(
-                              complaint.typeName,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('From: ${complaint.complainant?.fullName ?? "Unknown"}'),
-                                Text('Against: ${complaint.respondent?.fullName ?? "Unidentified / Unknown"}'),
-                                Text(
-                                  'Filed: ${DateFormat('MMM dd, yyyy').format(complaint.dateFiled)}',
-                                  style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color),
-                                ),
-                              ],
-                            ),
-                            trailing: ElevatedButton(
-                              onPressed: () => _convertToCase(complaint.id),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Convert to Case'),
-                            ),
+                          margin: const EdgeInsets.only(bottom: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 1,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
                             onTap: () => ComplaintDetailsDialog.show(context, complaint),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: Colors.orange.withValues(alpha: 0.15),
+                                        child: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              complaint.typeName,
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Filed: ${DateFormat('MMM dd, yyyy').format(complaint.dateFiled)}',
+                                              style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Text(
+                                          'Pending',
+                                          style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 11),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text('Complainant: ', style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color)),
+                                            Expanded(
+                                              child: Text(
+                                                complaint.complainant?.fullName ?? "Unknown",
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Text('Respondent: ', style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color)),
+                                            Expanded(
+                                              child: Text(
+                                                complaint.respondent?.fullName ?? "Unidentified / Unknown",
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _convertToCase(complaint.id),
+                                      icon: const Icon(Icons.arrow_forward, size: 16),
+                                      label: const Text('Convert to Blotter Case', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: theme.colorScheme.primary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         );
                       },

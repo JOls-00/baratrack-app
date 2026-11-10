@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_constants.dart';
 import '../../core/network/api_client.dart';
 import '../models/case_model.dart';
@@ -9,14 +11,27 @@ class CaseRepository {
   CaseRepository(this._apiClient);
 
   Future<List<CaseModel>> getCases({String? query, String? status}) async {
-    final response = await _apiClient.get(AppConstants.cases, queryParameters: {
-      if (query != null) 'q': query,
-      if (status != null) 'status': status,
-    });
-    
-    return (response.data['data'] as List)
-        .map((json) => CaseModel.fromJson(json))
-        .toList();
+    try {
+      final response = await _apiClient.get(AppConstants.cases, queryParameters: {
+        if (query != null) 'q': query,
+        if (status != null) 'status': status,
+      });
+      
+      final data = response.data['data'] as List;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('offline_cached_cases', jsonEncode(data));
+
+      return data.map((json) => CaseModel.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('[Offline Mode] Network failed for cases, falling back to cache: $e');
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('offline_cached_cases');
+      if (cached != null) {
+        final list = jsonDecode(cached) as List;
+        return list.map((json) => CaseModel.fromJson(json)).toList();
+      }
+      rethrow;
+    }
   }
 
   Future<List<CaseModel>> getCasesByResident(int residentId) async {

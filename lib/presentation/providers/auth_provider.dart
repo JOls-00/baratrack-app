@@ -249,6 +249,7 @@ class AuthProvider extends ChangeNotifier {
     String? contact,
     String? address,
     DateTime? birthDate,
+    String? avatarBase64,
   }) async {
     if (_user == null) return;
 
@@ -259,6 +260,7 @@ class AuthProvider extends ChangeNotifier {
         'contact_number': contact,
         'address': address,
         'birth_date': birthDate?.toIso8601String(),
+        if (avatarBase64 != null) 'avatar_base64': avatarBase64,
       });
 
       // Merge with existing residentId

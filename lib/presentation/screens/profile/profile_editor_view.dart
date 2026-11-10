@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/utils/validators.dart';
@@ -20,6 +24,8 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
   late TextEditingController _addressController;
   DateTime? _selectedBirthDate;
   bool _isInitialLoad = true;
+  XFile? _pickedImage;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -74,6 +80,50 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
     }
   }
 
+  Future<void> _pickImage() async {
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Change Profile Photo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                  child: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
+                ),
+                title: const Text('Take a photo with Camera'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                  child: Icon(Icons.photo_library, color: Theme.of(context).colorScheme.primary),
+                ),
+                title: const Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source != null) {
+      final XFile? image = await _picker.pickImage(source: source, maxWidth: 800, maxHeight: 800, imageQuality: 85);
+      if (image != null) {
+        setState(() {
+          _pickedImage = image;
+        });
+      }
+    }
+  }
+
   Future<void> _saveChanges() async {
     if (_formKey.currentState!.validate()) {
       final messenger = ScaffoldMessenger.of(context);
@@ -86,12 +136,19 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
       );
 
       try {
+        String? avatarBase64;
+        if (_pickedImage != null) {
+          final bytes = await _pickedImage!.readAsBytes();
+          avatarBase64 = base64Encode(bytes);
+        }
+
         await context.read<AuthProvider>().updateProfile(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           contact: _phoneController.text.trim(),
           address: _addressController.text.trim(),
           birthDate: _selectedBirthDate,
+          avatarBase64: avatarBase64,
         );
         
         if (mounted) {
@@ -225,28 +282,59 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
   }
 
   Widget _buildAvatarSection(ThemeData theme) {
+    final user = context.watch<AuthProvider>().user;
+    ImageProvider? avatarImage;
+    if (_pickedImage != null) {
+      avatarImage = kIsWeb ? NetworkImage(_pickedImage!.path) : FileImage(File(_pickedImage!.path)) as ImageProvider;
+    } else if (user?.profilePicture != null && user!.profilePicture!.isNotEmpty) {
+      avatarImage = NetworkImage(user.profilePicture!);
+    }
+
     return Column(
       children: [
-        Stack(
-          children: [
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-              child: Text(_nameController.text.isNotEmpty ? _nameController.text[0] : 'U', style: TextStyle(fontSize: 48, color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: theme.colorScheme.primary, shape: BoxShape.circle),
-                child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+        GestureDetector(
+          onTap: _pickImage,
+          child: Stack(
+            children: [
+              CircleAvatar(
+                radius: 60,
+                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                backgroundImage: avatarImage,
+                child: avatarImage == null
+                    ? Text(
+                        _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : 'U',
+                        style: TextStyle(fontSize: 48, color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+                      )
+                    : null,
               ),
-            ),
-          ],
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
-        const Text('Upload New Profile Photo', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        InkWell(
+          onTap: _pickImage,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Text(
+              _pickedImage != null ? 'Tap to change selected photo' : 'Tap to upload profile photo',
+              style: TextStyle(fontSize: 13, color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
       ],
     );
   }
