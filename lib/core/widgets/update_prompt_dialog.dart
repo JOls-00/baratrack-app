@@ -120,10 +120,20 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
       }
     } catch (e) {
       if (!mounted) return;
+      String friendlyMsg = 'Download failed. Please check your internet connection and try again.';
+      if (e is DioException) {
+        if (e.response?.statusCode == 404) {
+          friendlyMsg = 'The update package is currently being generated on the server (release in progress). Please tap "Update Now" again in 1–2 minutes.';
+        } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+          friendlyMsg = 'Connection timed out. Please check your internet connection and try again.';
+        } else {
+          friendlyMsg = 'Server responded with code ${e.response?.statusCode ?? 'error'}. Please try again shortly.';
+        }
+      }
       setState(() {
         _isDownloading = false;
         _isInstalling = false;
-        _errorMessage = 'Download failed: $e';
+        _errorMessage = friendlyMsg;
       });
     }
   }
@@ -224,10 +234,11 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             if (_isDownloading) ...[
               const SizedBox(height: 12),
               Text(
@@ -358,6 +369,7 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
             ],
           ],
         ),
+      ),
         actions: [
           if (!_isDownloading && !widget.info.forceUpdate)
             TextButton(

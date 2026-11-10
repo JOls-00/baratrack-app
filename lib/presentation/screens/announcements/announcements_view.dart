@@ -134,26 +134,58 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 500;
+              if (isCompact) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Announcements', style: theme.textTheme.headlineLarge),
-                    const Text('Official updates and alerts from the Barangay Council.',
-                        style: TextStyle(color: AppTheme.textSecondary)),
+                    Text(
+                      'Announcements',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Official updates and alerts from the Barangay Council.',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
+                    if (canEdit) ...[
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => _edit(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('New announcement'),
+                      ),
+                    ],
                   ],
-                ),
-              ),
-              if (canEdit)
-                ElevatedButton.icon(
-                  onPressed: () => _edit(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('New announcement'),
-                ),
-            ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Announcements', style: theme.textTheme.headlineLarge),
+                        const SizedBox(height: 4),
+                        const Text('Official updates and alerts from the Barangay Council.',
+                            style: TextStyle(color: AppTheme.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  if (canEdit)
+                    ElevatedButton.icon(
+                      onPressed: () => _edit(),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('New announcement'),
+                    ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
           Expanded(
