@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/app_theme.dart';
@@ -26,6 +30,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final _fullNameController = TextEditingController();
   final _mobileController = TextEditingController();
   final _captchaAnswerController = TextEditingController();
+
+  // Resident ID Verification
+  final _idNumberController = TextEditingController();
+  String _selectedIdType = 'Barangay Resident ID';
+  XFile? _validIdFile;
+  String? _validIdBase64;
+  final ImagePicker _picker = ImagePicker();
+
+  static const List<String> _idTypeList = [
+    'Barangay Resident ID',
+    'PhilSys / National ID',
+    'Driver\'s License',
+    'Voter\'s ID / Certification',
+    'UMID / SSS / GSIS',
+    'Student / School ID',
+    'Postal ID',
+    'Passport',
+    'Other Valid Government ID',
+  ];
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -59,7 +82,71 @@ class _LoginScreenState extends State<LoginScreen> {
     _fullNameController.dispose();
     _mobileController.dispose();
     _captchaAnswerController.dispose();
+    _idNumberController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickIdPhoto(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _validIdFile = picked;
+        _validIdBase64 = base64Encode(bytes);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
+  void _showIdPhotoSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Upload Valid ID / Barangay ID',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Take a photo with camera'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickIdPhoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickIdPhoto(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _onPasswordChanged() {
@@ -153,7 +240,9 @@ class _LoginScreenState extends State<LoginScreen> {
       middleName: null,
       lastName: nameParts.skip(1).join(' '),
       role: _selectedRole,
-      idNumber: null,
+      idNumber: _idNumberController.text.trim().isEmpty ? null : _idNumberController.text.trim(),
+      idType: _selectedIdType,
+      validIdBase64: _validIdBase64,
       email: _emailController.text.trim(),
       mobile: rawMobile,
       username: '', // the server creates it from the first name
@@ -421,6 +510,173 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               obscureText: _obscureConfirmPassword,
               validator: (v) => Validators.validateConfirmPassword(v, _passwordController.text),
+            ),
+            const SizedBox(height: 20),
+
+            // Resident Identity Verification (Option C)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: context.brand.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.badge_outlined, color: context.brand, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Resident ID Verification',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.darkNavy),
+                            ),
+                            Text(
+                              'Patunay ng pagiging residente ng barangay',
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ID Type Dropdown
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedIdType,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Valid ID Type',
+                      prefixIcon: Icon(Icons.credit_card_outlined),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    items: _idTypeList.map((type) {
+                      return DropdownMenuItem(value: type, child: Text(type, style: const TextStyle(fontSize: 14)));
+                    }).toList(),
+                    onChanged: isLoading ? null : (v) => setState(() => _selectedIdType = v ?? _selectedIdType),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ID Number Field
+                  TextFormField(
+                    controller: _idNumberController,
+                    decoration: const InputDecoration(
+                      labelText: 'ID / Document Number',
+                      prefixIcon: Icon(Icons.numbers_outlined),
+                      hintText: 'e.g. 1234-5678-9012 or Resident #',
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Valid ID Photo Upload Box
+                  Text(
+                    'Upload Valid ID Photo',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_validIdFile != null)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.green.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: kIsWeb
+                                ? Image.network(_validIdFile!.path, width: 64, height: 48, fit: BoxFit.cover)
+                                : Image.file(File(_validIdFile!.path), width: 64, height: 48, fit: BoxFit.cover),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text('ID Photo Attached',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green.shade800)),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(_selectedIdType, style: TextStyle(fontSize: 11, color: Colors.grey.shade600), maxLines: 1),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh, color: Colors.black54),
+                            tooltip: 'Retake photo',
+                            onPressed: isLoading ? null : _showIdPhotoSourceSheet,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.red),
+                            tooltip: 'Remove',
+                            onPressed: isLoading
+                                ? null
+                                : () => setState(() {
+                                      _validIdFile = null;
+                                      _validIdBase64 = null;
+                                    }),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    InkWell(
+                      onTap: isLoading ? null : _showIdPhotoSourceSheet,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.add_a_photo_outlined, size: 32, color: context.brand),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Tap to upload or photograph your ID',
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: context.brand),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Camera or Gallery (JPEG, PNG, WebP up to 5MB)',
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
 
