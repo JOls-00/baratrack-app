@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 class AppConstants {
   static const String appName = 'BaraTrack';
+  static const String appVersion = '1.0.0';
+  static const int buildNumber = 1;
   
   // The API address is set at build time, never hard-coded:
   //   flutter run   --dart-define=API_BASE_URL=http://10.0.2.2/barangay_api      (Android emulator + XAMPP)
@@ -36,7 +38,9 @@ class AppConstants {
   static const String publicTrack = '/public/track.php';
   static const String publicChat = '/public/chat.php';
   static const String publicBranding = '/public/branding.php';
+  static const String publicVersion = '/public/version.php';
   static const String adminBranding = '/branding.php';
+  static const String adminVersion = '/version.php';
   static const String adminAnnouncements = '/announcements.php';
   static const String adminFaqs = '/faqs.php';
   static const String notifications = '/notifications.php';

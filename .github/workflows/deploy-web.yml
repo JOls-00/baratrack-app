@@ -28,18 +28,18 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Check required settings
-        env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
+      - name: Resolve API_BASE_URL
         run: |
-          [ -n "$API_BASE_URL" ] || { echo "Set repository VARIABLE API_BASE_URL (https://...)"; exit 1; }
-          case "$API_BASE_URL" in https://*) ;; *) echo "API_BASE_URL must start with https://"; exit 1;; esac
+          API_URL="${{ vars.API_BASE_URL }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="https://baratrack-api.onrender.com"
+          fi
+          echo "Using API_BASE_URL: $API_URL"
+          echo "API_BASE_URL=$API_URL" >> $GITHUB_ENV
 
       - run: flutter pub get
 
       - name: Build web
-        env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
         run: |
           flutter build web --release \
             --base-href "/${{ github.event.repository.name }}/" \
