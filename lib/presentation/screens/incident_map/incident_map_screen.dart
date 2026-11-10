@@ -93,7 +93,7 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
     final pts = shown.map((p) => LatLng(p.latitude, p.longitude)).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -103,9 +103,10 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
               final headerTexts = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Incident Map', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text('Saan naiulat ang mga reklamo. Staff lamang ang nakakakita nito.', style: TextStyle(color: Colors.grey.shade700)),
+                  Text('Incident Map', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text('Saan naiulat ang mga reklamo. Staff lamang ang nakakakita nito.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 ],
               );
               final actionControls = Row(
@@ -115,15 +116,24 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                     flex: isNarrow ? 1 : 0,
                     child: OutlinedButton.icon(
                       onPressed: _pickRange,
-                      icon: const Icon(Icons.date_range, size: 18),
+                      icon: const Icon(Icons.date_range, size: 16),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
                       label: Text(
                         '${_pretty.format(_range.start)} – ${_pretty.format(_range.end)}',
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 11),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(onPressed: _load, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh, size: 20),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Refresh',
+                  ),
                 ],
               );
 
@@ -132,7 +142,7 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     headerTexts,
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     actionControls,
                   ],
                 );
@@ -145,24 +155,63 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
               );
             },
           ),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            ChoiceChip(label: const Text('All categories'), selected: _category == null, onSelected: (_) => setState(() => _category = null)),
-            for (final c in categories)
-              ChoiceChip(label: Text(c), selected: _category == c, onSelected: (_) => setState(() => _category = _category == c ? null : c)),
-            const SizedBox(width: 12),
-            for (final s in _statuses)
-              FilterChip(
-                avatar: CircleAvatar(radius: 5, backgroundColor: incidentStatusColor(s)),
-                label: Text(s),
-                selected: _status == s,
-                onSelected: (_) => setState(() => _status = _status == s ? null : s),
-              ),
-            const SizedBox(width: 12),
-            FilterChip(label: const Text('Labels'), selected: _labels, onSelected: (v) => setState(() => _labels = v)),
-            FilterChip(label: const Text('Names'), selected: _names, onSelected: (v) => setState(() => _names = v)),
-          ]),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          // Sleek single-row horizontal filters
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                ChoiceChip(
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: const Text('All categories', style: TextStyle(fontSize: 12)),
+                  selected: _category == null,
+                  onSelected: (_) => setState(() => _category = null),
+                ),
+                const SizedBox(width: 6),
+                for (final c in categories) ...[
+                  ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    label: Text(c, style: const TextStyle(fontSize: 12)),
+                    selected: _category == c,
+                    onSelected: (_) => setState(() => _category = _category == c ? null : c),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                const VerticalDivider(width: 16, indent: 6, endIndent: 6),
+                for (final s in _statuses) ...[
+                  FilterChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    avatar: CircleAvatar(radius: 4, backgroundColor: incidentStatusColor(s)),
+                    label: Text(s, style: const TextStyle(fontSize: 12)),
+                    selected: _status == s,
+                    onSelected: (_) => setState(() => _status = _status == s ? null : s),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                const VerticalDivider(width: 16, indent: 6, endIndent: 6),
+                FilterChip(
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: const Text('Labels', style: TextStyle(fontSize: 12)),
+                  selected: _labels,
+                  onSelected: (v) => setState(() => _labels = v),
+                ),
+                const SizedBox(width: 6),
+                FilterChip(
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: const Text('Names', style: TextStyle(fontSize: 12)),
+                  selected: _names,
+                  onSelected: (v) => setState(() => _names = v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -209,10 +258,33 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                   Positioned(
                     left: 12,
                     top: 12,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Text(_error ?? '${shown.length} ${shown.length == 1 ? 'report' : 'reports'} sa mapa', style: TextStyle(fontWeight: FontWeight.w600, color: _error != null ? Colors.red.shade700 : null)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.location_on, size: 14, color: primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            _error ?? '${shown.length} ${shown.length == 1 ? 'report' : 'reports'}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _error != null ? Colors.red.shade700 : Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -222,31 +294,15 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                         child: Card(
                           child: Padding(
                             padding: const EdgeInsets.all(18),
-                            child: Text('Walang reklamong may pin sa napiling petsa.\nLalabas dito ang mga bagong reklamo na may lokasyon.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade700)),
+                            child: Text(
+                              'Walang reklamong may pin sa napiling petsa.\nLalabas dito ang mga bagong reklamo na may lokasyon.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey.shade700),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  Positioned(
-                    left: 12,
-                    bottom: 24,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          for (final s in _statuses)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                CircleAvatar(radius: 5, backgroundColor: incidentStatusColor(s)),
-                                const SizedBox(width: 8),
-                                Text(s, style: const TextStyle(fontSize: 12)),
-                              ]),
-                            ),
-                        ]),
-                      ),
-                    ),
-                  ),
                   if (_selected != null)
                     Positioned(
                       right: 12,
