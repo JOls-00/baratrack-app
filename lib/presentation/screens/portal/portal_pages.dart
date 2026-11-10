@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../config/app_theme.dart';
 import '../auth/login_page.dart';
 import '../auth/login_screen.dart';
 import '../../providers/branding_provider.dart';
@@ -88,6 +90,30 @@ class AnnouncementsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = context.watch<PortalProvider>().announcements;
+    if (!kIsWeb) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Barangay Announcements', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          backgroundColor: Colors.white,
+          foregroundColor: AppTheme.darkNavy,
+          elevation: 0.5,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/login');
+              }
+            },
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: AnnouncementsSection(items: items),
+        ),
+      );
+    }
     return PortalShell(current: 'announcements', child: AnnouncementsSection(items: items));
   }
 }
@@ -110,6 +136,45 @@ class TrackPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!kIsWeb) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Track Complaint', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          backgroundColor: Colors.white,
+          foregroundColor: AppTheme.darkNavy,
+          elevation: 0.5,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/login');
+              }
+            },
+          ),
+        ),
+        body: const SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Track your application',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.darkNavy),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Alamin ang status ng iyong reklamo gamit ang Reference Number. Hindi mo kailangang mag-login.',
+                style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+              ),
+              SizedBox(height: 16),
+              TrackPanel(),
+            ],
+          ),
+        ),
+      );
+    }
     return const PortalShell(
       current: 'track',
       child: SectionFrame(

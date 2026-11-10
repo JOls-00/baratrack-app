@@ -97,21 +97,53 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 620;
+              final headerTexts = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text('Incident Map', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
                   Text('Saan naiulat ang mga reklamo. Staff lamang ang nakakakita nito.', style: TextStyle(color: Colors.grey.shade700)),
-                ]),
-              ),
-              OutlinedButton.icon(
-                onPressed: _pickRange,
-                icon: const Icon(Icons.date_range, size: 18),
-                label: Text('${_pretty.format(_range.start)} – ${_pretty.format(_range.end)}'),
-              ),
-              IconButton(onPressed: _load, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
-            ],
+                ],
+              );
+              final actionControls = Row(
+                mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  Expanded(
+                    flex: isNarrow ? 1 : 0,
+                    child: OutlinedButton.icon(
+                      onPressed: _pickRange,
+                      icon: const Icon(Icons.date_range, size: 18),
+                      label: Text(
+                        '${_pretty.format(_range.start)} – ${_pretty.format(_range.end)}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(onPressed: _load, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+                ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    headerTexts,
+                    const SizedBox(height: 12),
+                    actionControls,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: headerTexts),
+                  actionControls,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [

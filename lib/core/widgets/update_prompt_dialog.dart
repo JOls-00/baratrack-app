@@ -128,6 +128,46 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
     }
   }
 
+  List<Widget> _buildFeatureList(String raw, Color primary) {
+    final parts = raw.split(RegExp(r'[,;\n]')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) {
+      return [
+        const Text('Performance improvements and bug fixes.', style: TextStyle(fontSize: 12, color: Colors.black87)),
+      ];
+    }
+    return parts.map((part) {
+      IconData icon = Icons.check_circle_outline;
+      final lower = part.toLowerCase();
+      if (lower.contains('id') || lower.contains('photo') || lower.contains('verification')) {
+        icon = Icons.badge_outlined;
+      } else if (lower.contains('track')) {
+        icon = Icons.track_changes;
+      } else if (lower.contains('announcement') || lower.contains('bulletin')) {
+        icon = Icons.campaign_outlined;
+      } else if (lower.contains('updater') || lower.contains('install')) {
+        icon = Icons.system_update_alt;
+      } else if (lower.contains('offline') || lower.contains('cache')) {
+        icon = Icons.wifi_off_outlined;
+      }
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                part,
+                style: const TextStyle(fontSize: 12, color: Colors.black87, height: 1.3),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -274,31 +314,24 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
                   ),
                 ),
               ],
-              if (widget.info.releaseNotes.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  "What's New:",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              const SizedBox(height: 16),
+              const Text(
+                "What's New in This Version:",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                const SizedBox(height: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 140),
-                  child: SingleChildScrollView(
-                    child: Text(
-                      widget.info.releaseNotes,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _buildFeatureList(widget.info.releaseNotes, primary),
                 ),
-              ] else ...[
-                const SizedBox(height: 12),
-                Text(
-                  'A new version with performance improvements and bug fixes is ready to install.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
+              ),
               if (widget.info.forceUpdate) ...[
                 const SizedBox(height: 14),
                 Container(
