@@ -31,6 +31,26 @@ class ApiClient {
         }
         return handler.next(options);
       },
+      onError: (DioException e, handler) {
+        final data = e.response?.data;
+        String friendly;
+        if (data is Map && data['message'] is String) {
+          friendly = data['message'] as String; // the server's own explanation
+        } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+          friendly = 'The server is taking too long to answer. It may be waking up, so please try again in a minute.';
+        } else if (e.type == DioExceptionType.connectionError) {
+          friendly = 'Cannot reach the server. Please check your internet connection.';
+        } else {
+          friendly = 'Something went wrong (${e.response?.statusCode ?? 'no response'}). Please try again.';
+        }
+        return handler.next(DioException(
+          requestOptions: e.requestOptions,
+          response: e.response,
+          type: e.type,
+          error: e.error,
+          message: friendly,
+        ));
+      },
     ));
 
     // QUICK FIX: Add Mock Interceptor for Offline Mode

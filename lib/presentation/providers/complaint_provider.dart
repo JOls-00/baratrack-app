@@ -61,6 +61,7 @@ class ComplaintProvider extends ChangeNotifier {
         case 'Threats': typeId = 3; break;
         case 'Noise Complaint': typeId = 4; break;
         case 'Property Damage': typeId = 5; break;
+        case 'Others': typeId = 6; break;
       }
 
       final id = await _repository.fileComplaint({

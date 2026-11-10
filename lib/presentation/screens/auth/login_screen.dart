@@ -23,12 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _firstNameController = TextEditingController();
-  final _middleNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _idNumberController = TextEditingController();
+  final _fullNameController = TextEditingController();
   final _mobileController = TextEditingController();
-  final _usernameController = TextEditingController();
   final _captchaAnswerController = TextEditingController();
 
   bool _obscurePassword = true;
@@ -60,12 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _firstNameController.dispose();
-    _middleNameController.dispose();
-    _lastNameController.dispose();
-    _idNumberController.dispose();
+    _fullNameController.dispose();
     _mobileController.dispose();
-    _usernameController.dispose();
     _captchaAnswerController.dispose();
     super.dispose();
   }
@@ -154,15 +146,17 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // Split the single "Full Name" box: first word = first name, the rest = last name.
+    final nameParts = _fullNameController.text.trim().split(RegExp(r'\s+'));
     final res = await authProvider.register(
-      firstName: _firstNameController.text.trim(),
-      middleName: _middleNameController.text.trim().isNotEmpty ? _middleNameController.text.trim() : null,
-      lastName: _lastNameController.text.trim(),
+      firstName: nameParts.first,
+      middleName: null,
+      lastName: nameParts.skip(1).join(' '),
       role: _selectedRole,
-      idNumber: _idNumberController.text.trim().isNotEmpty ? _idNumberController.text.trim() : null,
+      idNumber: null,
       email: _emailController.text.trim(),
       mobile: rawMobile,
-      username: _usernameController.text.trim(),
+      username: '', // the server creates it from the first name
       password: _passwordController.text,
       captchaId: _captchaId ?? '',
       captchaAnswer: _captchaAnswerController.text.trim(),
@@ -295,49 +289,27 @@ class _LoginScreenState extends State<LoginScreen> {
             const SocialLoginButtons(label: 'Mabilis na sign-up gamit ang'),
             const SizedBox(height: 16),
 
-            // First Name
+            // Full Name (one field; the first name becomes the username automatically)
             TextFormField(
-              controller: _firstNameController,
+              controller: _fullNameController,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(
-                labelText: 'First Name',
+                labelText: 'Full Name',
                 prefixIcon: Icon(Icons.person_outline),
-                helperText: "Min 2 characters (letters, spaces, -, ., ' only)",
+                helperText: 'First and last name, e.g. Juan Dela Cruz',
               ),
-              validator: (v) => Validators.validateName(v, 'First Name'),
-            ),
-            const SizedBox(height: 16),
-
-            // Middle Name (Optional)
-            TextFormField(
-              controller: _middleNameController,
-              decoration: const InputDecoration(
-                labelText: 'Middle Name (Optional)',
-                prefixIcon: Icon(Icons.person_outline),
-                helperText: "Letters, spaces, -, ., ' only if provided",
-              ),
-              validator: (v) => Validators.validateName(v, 'Middle Name', isOptional: true),
-            ),
-            const SizedBox(height: 16),
-
-            // Last Name
-            TextFormField(
-              controller: _lastNameController,
-              decoration: const InputDecoration(
-                labelText: 'Last Name',
-                prefixIcon: Icon(Icons.person_outline),
-                helperText: "Min 2 characters (letters, spaces, -, ., ' only)",
-              ),
-              validator: (v) => Validators.validateName(v, 'Last Name'),
-            ),
-            const SizedBox(height: 16),
-
-            // ID Number
-            TextFormField(
-              controller: _idNumberController,
-              decoration: const InputDecoration(
-                labelText: 'Resident ID (optional)',
-                prefixIcon: Icon(Icons.card_membership),
-              ),
+              validator: (v) {
+                final t = (v ?? '').trim();
+                if (t.isEmpty) return 'Full name is required';
+                if (!RegExp(r"^[\p{L}\s\-\.']+$", unicode: true).hasMatch(t)) {
+                  return 'Use letters, spaces, hyphens, periods or apostrophes only';
+                }
+                final words = t.split(RegExp(r'\s+'));
+                if (words.length < 2 || words.first.length < 2 || words.last.length < 2) {
+                  return 'Please enter your first and last name';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
 
@@ -356,29 +328,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 }
                 if (!RegExp(r'^09\d{9}$').hasMatch(clean)) {
                   return 'Mobile number must start with 09 and contain 11 digits';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Username
-            TextFormField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: 'Username',
-                prefixIcon: Icon(Icons.alternate_email),
-                helperText: 'Min 4 characters (letters, numbers, _, .)',
-              ),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Username is required';
-                }
-                if (v.trim().length < 4) {
-                  return 'Username must be at least 4 characters';
-                }
-                if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(v.trim())) {
-                  return 'Username can only contain letters, numbers, _, or .';
                 }
                 return null;
               },

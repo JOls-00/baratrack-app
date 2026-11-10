@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show DioException;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -210,7 +211,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           );
         }
       } catch (e) {
-        _showError('Error: ${e.toString()}');
+        _showError(e is DioException ? (e.message ?? 'Something went wrong. Please try again.') : 'Error: ${e.toString()}');
       } finally {
         if (mounted) setState(() => _isSubmitting = false);
       }

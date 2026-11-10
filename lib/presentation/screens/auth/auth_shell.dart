@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/app_theme.dart';
@@ -217,12 +218,13 @@ class _CompactHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextButton.icon(
-              onPressed: () => context.go('/welcome'),
-              style: TextButton.styleFrom(foregroundColor: Colors.white),
-              icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('Back to home'),
-            ),
+            if (kIsWeb)
+              TextButton.icon(
+                onPressed: () => context.go('/welcome'),
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                icon: const Icon(Icons.arrow_back, size: 18),
+                label: const Text('Back to home'),
+              ),
             Padding(
               padding: const EdgeInsets.only(left: 8),
               child: Row(

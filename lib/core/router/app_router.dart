@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -46,7 +47,8 @@ class AppRouter {
       final status = authNotifier.value;
 
       if (status != AuthStatus.authenticated) {
-        return isUnauthRoute ? null : '/welcome';
+        // Website visitors see the landing page; the phone app goes straight to login.
+        return isUnauthRoute ? null : (kIsWeb ? '/welcome' : '/login');
       }
 
       if (isUnauthRoute) {

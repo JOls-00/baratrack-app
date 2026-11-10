@@ -124,6 +124,7 @@ class _MainShellState extends State<MainShell> {
       key: _scaffoldKey,
       drawer: isMobile ? _buildNavDrawer(context, isResident, selectedIndex) : null,
       endDrawer: _buildNotificationDrawer(context, isResident),
+      bottomNavigationBar: isMobile ? _buildBottomBar(context, isResident, selectedIndex) : null,
       body: Row(
         children: [
           if (!isMobile)
@@ -163,6 +164,38 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  /// Phone navigation: four main places plus "More", which opens the full menu.
+  Widget _buildBottomBar(BuildContext context, bool isResident, int selectedIndex) {
+    final items = isResident
+        ? const [
+            ('Home', Icons.home_outlined, Icons.home),
+            ('Calendar', Icons.calendar_today_outlined, Icons.calendar_today),
+            ('Complaints', Icons.assignment_outlined, Icons.assignment),
+            ('Hearings', Icons.gavel_outlined, Icons.gavel),
+          ]
+        : const [
+            ('Dashboard', Icons.dashboard_outlined, Icons.dashboard),
+            ('Calendar', Icons.calendar_today_outlined, Icons.calendar_today),
+            ('Inbox', Icons.inbox_outlined, Icons.inbox),
+            ('Cases', Icons.folder_outlined, Icons.folder),
+          ];
+    return NavigationBar(
+      selectedIndex: selectedIndex < 4 ? selectedIndex : 4,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      onDestinationSelected: (i) {
+        if (i < 4) {
+          _onItemTapped(i, context, isResident);
+        } else {
+          _scaffoldKey.currentState?.openDrawer();
+        }
+      },
+      destinations: [
+        for (final it in items) NavigationDestination(icon: Icon(it.$2), selectedIcon: Icon(it.$3), label: it.$1),
+        const NavigationDestination(icon: Icon(Icons.menu), label: 'More'),
+      ],
+    );
+  }
+
   Widget _buildTopBar(BuildContext context, user, bool isMobile) {
     final theme = Theme.of(context);
     final isResident = user?.role == 'Resident';
@@ -180,7 +213,9 @@ class _MainShellState extends State<MainShell> {
       ),
       child: Row(
         children: [
-          if (isMobile) IconButton(icon: const Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
+          // On phones the bottom bar has a "More" button that opens the menu; tablets keep the menu icon.
+          if (isMobile && !compact) IconButton(icon: const Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
+          if (compact) const SizedBox(width: 8),
           Expanded(
             child: Row(
               children: [
