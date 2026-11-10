@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/version_provider.dart';
 import '../portal/landing_sections.dart';
 import 'auth_shell.dart';
 import 'social_login_buttons.dart';
@@ -20,6 +21,16 @@ class _LoginPageState extends State<LoginPage> {
   final _password = TextEditingController();
   bool _obscure = true;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<VersionProvider>().checkForUpdates(context: context);
+      }
+    });
+  }
 
   @override
   void dispose() {
