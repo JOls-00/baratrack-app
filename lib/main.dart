@@ -34,6 +34,7 @@ import 'core/router/app_router.dart';
 import 'core/widgets/session_reset_binder.dart';
 import 'core/network/connectivity_provider.dart';
 import 'core/widgets/reconnect_banner.dart';
+import 'core/sync/sync_manager.dart';
 import 'data/repositories/offline_queue_repository.dart';
 
 import 'data/repositories/version_repository.dart';
@@ -192,7 +193,14 @@ class BarangayApp extends StatelessWidget {
                 final showBanner = userChoseOffline && connectivity.isOnline;
                 return Column(
                   children: [
-                    if (showBanner) ReconnectBanner(draftCount: queueRepo.draftCount),
+                    if (showBanner)
+                      ReconnectBanner(
+                        draftCount: queueRepo.draftCount,
+                        onProceed: () {
+                          AppRouter.exitOfflineMode();
+                          SyncManager.handleProceedToOnline(context);
+                        },
+                      ),
                     Expanded(child: child!),
                   ],
                 );
