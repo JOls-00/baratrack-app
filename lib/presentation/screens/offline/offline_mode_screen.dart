@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/router/app_router.dart';
+import '../../providers/auth_provider.dart';
 import '../../screens/complaints/file_complaint_screen.dart';
+import 'admin_offline_home.dart';
+import 'admin_pin_dialog.dart';
 
 class OfflineModeScreen extends StatefulWidget {
   const OfflineModeScreen({super.key});
@@ -113,6 +117,9 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
   @override
   Widget build(BuildContext context) {
     final brand = context.brand;
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+    final isAdminOrStaff = user?.role == 'Admin' || user?.role == 'Staff';
 
     return Scaffold(
       appBar: AppBar(
@@ -127,6 +134,20 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
           },
         ),
         actions: [
+          if (isAdminOrStaff)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings, color: Colors.amber),
+              tooltip: 'Admin Offline Portal (PIN Gate)',
+              onPressed: () async {
+                final unlocked = await AdminPinDialog.show(context);
+                if (unlocked == true && context.mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminOfflineHome()),
+                  );
+                }
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Reload cached data',
