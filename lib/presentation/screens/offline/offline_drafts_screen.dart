@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart' show DioException;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -196,6 +197,28 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                 style: const TextStyle(fontSize: 13, height: 1.3),
               ),
               const SizedBox(height: 8),
+            ] else ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, size: 16, color: Colors.amber.shade900),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Walang salaysay — I-tap ang "Edit" para lagyan ng detalye bago i-submit',
+                        style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
             Row(
               children: [
@@ -434,8 +457,31 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
     for (final item in selectedItems) {
       if (item.type == 'complaint') {
         try {
-          await queueRepo.updateState(item.id, 'sending');
           final p = item.payload;
+          final detailsText = (p['narrative']?.toString() ?? p['details']?.toString() ?? '').trim();
+          final locationText = (p['location']?.toString() ?? '').trim();
+
+          if (detailsText.isEmpty) {
+            failureCount++;
+            await queueRepo.updateState(
+              item.id,
+              'failed',
+              error: 'Kulang ang salaysay (Details is required). I-tap ang "Edit" para lagyan ng detalye bago i-submit.',
+            );
+            continue;
+          }
+
+          if (locationText.isEmpty) {
+            failureCount++;
+            await queueRepo.updateState(
+              item.id,
+              'failed',
+              error: 'Kulang ang lokasyon. I-tap ang "Edit" para lagyan ng lugar bago i-submit.',
+            );
+            continue;
+          }
+
+          await queueRepo.updateState(item.id, 'sending');
           final dateStr = p['incident_date']?.toString() ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
           final timeStr = p['incident_time']?.toString() ?? '12:00:00';
 
@@ -443,12 +489,12 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
             complainantId: user?.residentId,
             respondentId: p['respondent_id'] is int ? p['respondent_id'] as int : null,
             category: p['category']?.toString() ?? 'Others',
-            location: p['location']?.toString() ?? '',
+            location: locationText,
             latitude: (p['latitude'] as num?)?.toDouble(),
             longitude: (p['longitude'] as num?)?.toDouble(),
             date: dateStr,
             time: timeStr,
-            details: p['narrative']?.toString() ?? '',
+            details: detailsText,
             clientUuid: item.id,
           );
 
@@ -477,7 +523,25 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
           successCount++;
         } catch (e) {
           failureCount++;
-          await queueRepo.updateState(item.id, 'failed', error: e.toString());
+          String friendlyError;
+          if (e is DioException) {
+            final data = e.response?.data;
+            if (data is Map && data['message'] is String) {
+              friendlyError = data['message'] as String;
+            } else if (e.message != null && e.message!.isNotEmpty) {
+              friendlyError = e.message!;
+            } else {
+              friendlyError = 'Network error (${e.response?.statusCode ?? 'no response'})';
+            }
+          } else {
+            friendlyError = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+          }
+
+          if (friendlyError.contains("'details' is required")) {
+            friendlyError = 'Kulang ang salaysay (Details is required). I-tap ang "Edit" para punan bago i-submit.';
+          }
+
+          await queueRepo.updateState(item.id, 'failed', error: friendlyError);
         }
       }
     }

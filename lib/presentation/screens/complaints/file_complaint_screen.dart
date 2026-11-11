@@ -149,10 +149,15 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
       _currentDraftId = draftId;
 
       if (showNotice && mounted) {
+        final hasNarrative = _narrativeController.text.trim().isNotEmpty;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Complaint draft saved offline safely!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              hasNarrative
+                  ? 'Complaint draft saved offline safely!'
+                  : 'Draft saved! Paalala: Lagyan ng salaysay bago ito tuluyang i-submit.',
+            ),
+            backgroundColor: hasNarrative ? Colors.green : Colors.orange.shade800,
             behavior: SnackBarBehavior.floating,
           ),
         );
