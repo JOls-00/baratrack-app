@@ -10,6 +10,8 @@ import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/hearing_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../walkthrough/walkthrough_screen.dart';
 import '../complaints/file_complaint_screen.dart';
 
 /// Resident Home Screen (Task 27)
@@ -37,8 +39,25 @@ class _UserDashboardViewState extends State<UserDashboardView> {
         context.read<ComplaintProvider>().fetchMyComplaints();
         context.read<HearingProvider>().fetchHearings();
         _checkDrafts();
+        _checkFirstTimeWalkthrough();
       }
     });
+  }
+
+  Future<void> _checkFirstTimeWalkthrough() async {
+    try {
+      final user = context.read<AuthProvider>().user;
+      if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final seen = prefs.getBool('walkthrough_seen_${user.id}') ?? false;
+        if (!seen && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const WalkthroughScreen()),
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkDrafts() async {

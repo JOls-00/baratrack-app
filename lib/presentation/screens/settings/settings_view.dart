@@ -9,6 +9,9 @@ import '../../../config/app_constants.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/utils/validators.dart';
 import '../../providers/version_provider.dart';
+import '../../providers/locale_provider.dart';
+import '../../../core/localization/app_strings.dart';
+import '../walkthrough/walkthrough_screen.dart';
 import 'branding_card.dart';
 import 'officials_card.dart';
 import 'faq_manager_card.dart';
@@ -217,6 +220,75 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
             
+            const SizedBox(height: 32),
+
+            // Language Preference (Task 29)
+            _buildSectionHeader('Wika / Language'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Piliin ang Wika ng App (App Language)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    const Text('I-toggle ang wika para sa mga tab, button, at abiso.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                    const SizedBox(height: 16),
+                    Consumer<LocaleProvider>(
+                      builder: (context, locale, _) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: ChoiceChip(
+                                label: const Center(child: Text('Filipino (Tagalog)', style: TextStyle(fontWeight: FontWeight.w600))),
+                                selected: locale.isFilipino,
+                                onSelected: (_) => locale.setLocale(AppStrings.localeFil),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ChoiceChip(
+                                label: const Center(child: Text('English', style: TextStyle(fontWeight: FontWeight.w600))),
+                                selected: !locale.isFilipino,
+                                onSelected: (_) => locale.setLocale(AppStrings.localeEn),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Walkthrough Guide (Task 38)
+            _buildSectionHeader('App Guide & Onboarding'),
+            Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.brand500.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.school_outlined, color: AppTheme.brand500, size: 24),
+                ),
+                title: const Text('BaraTrack App Walkthrough', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Basahing muli ang 3 gabay para sa paghain, pagsubaybay, at offline drafts.'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const WalkthroughScreen()),
+                  );
+                },
+              ),
+            ),
+
             const SizedBox(height: 32),
             
             // Profile Section

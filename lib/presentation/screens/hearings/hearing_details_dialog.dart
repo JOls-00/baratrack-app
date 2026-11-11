@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_theme.dart';
 import '../../../data/models/hearing_model.dart';
 
@@ -52,18 +53,72 @@ class HearingDetailsDialog {
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(backgroundColor: context.brand, foregroundColor: Colors.white),
-                child: const Text('Acknowledge Schedule'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _addToCalendar(context, hearing),
+                      icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                      label: const Text('Add to Calendar', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: context.brand,
+                        side: BorderSide(color: context.brand),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: context.brand,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Acknowledge', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  static Future<void> _addToCalendar(BuildContext context, HearingModel hearing) async {
+    try {
+      final title = Uri.encodeComponent('Lupon Hearing: Case #${hearing.caseNumber}');
+      final details = Uri.encodeComponent('Barangay Rosario Lupon Mediation Session. Venue: ${hearing.venue}. Notes: ${hearing.notes ?? "None"}');
+      final location = Uri.encodeComponent(hearing.venue.isNotEmpty ? hearing.venue : 'Barangay Rosario Hall, Santiago City');
+      final dateStr = DateFormat('yyyyMMdd').format(hearing.hearingDate);
+
+      final calUrl = Uri.parse(
+        'https://calendar.google.com/calendar/render?action=TEMPLATE&text=$title&dates=${dateStr}T010000Z/${dateStr}T020000Z&details=$details&location=$location',
+      );
+      if (await canLaunchUrl(calUrl)) {
+        await launchUrl(calUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hindi mabuksan ang kalendaryo sa device.')),
+          );
+        }
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('May naganap na error sa pagbukas ng kalendaryo.')),
+        );
+      }
+    }
   }
 
   static Widget _buildDetailRow(BuildContext context, IconData icon, String label, String value, {bool isStatus = false}) {

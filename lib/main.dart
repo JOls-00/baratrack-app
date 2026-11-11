@@ -30,6 +30,7 @@ import 'presentation/providers/notification_provider.dart';
 import 'presentation/providers/announcement_provider.dart';
 import 'presentation/providers/portal_provider.dart';
 import 'presentation/providers/branding_provider.dart';
+import 'presentation/providers/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/widgets/session_reset_binder.dart';
 import 'core/network/connectivity_provider.dart';
@@ -150,6 +151,9 @@ void main() {
         ),
         ChangeNotifierProvider(
           create: (_) => ConnectivityProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => LocaleProvider(),
         ),
         ChangeNotifierProvider(
           create: (_) => OfflineQueueRepository()..initialize(),

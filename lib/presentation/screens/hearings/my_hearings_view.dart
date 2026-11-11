@@ -109,7 +109,17 @@ class _MyHearingsViewState extends State<MyHearingsView> {
                                         ),
                                         title: Text('Case #${h.caseNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
                                         subtitle: Text('${h.hearingTime} @ ${h.venue}'),
-                                        trailing: const Icon(Icons.chevron_right),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(Icons.edit_calendar_outlined, color: context.brand, size: 20),
+                                              tooltip: 'Add to Calendar',
+                                              onPressed: () => HearingDetailsDialog.show(context, h),
+                                            ),
+                                            const Icon(Icons.chevron_right),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   );

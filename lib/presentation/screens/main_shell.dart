@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/version_provider.dart';
+import '../providers/locale_provider.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_theme.dart';
 import '../../core/widgets/brand_logo.dart';
@@ -132,7 +133,7 @@ class _MainShellState extends State<MainShell> {
                       selectedIndex: selectedIndex,
                       onDestinationSelected: (i) => _onItemTapped(i, context, isResident),
                       leading: _buildSidebarLogo(theme),
-                      destinations: isResident ? _buildResidentDestinations() : _buildAdminDestinations(),
+                      destinations: isResident ? _buildResidentDestinations(context) : _buildAdminDestinations(context),
                     ),
                   ),
                 ),
@@ -160,18 +161,19 @@ class _MainShellState extends State<MainShell> {
   /// Phone navigation: floating pill inset from edges with rounded corners and soft shadow.
   Widget _buildBottomBar(BuildContext context, bool isResident, int selectedIndex) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final locale = context.watch<LocaleProvider>();
     final items = isResident
-        ? const [
-            ('Home', Icons.home_outlined, Icons.home),
-            ('Calendar', Icons.calendar_today_outlined, Icons.calendar_today),
-            ('Reklamo', Icons.assignment_outlined, Icons.assignment),
-            ('Hearings', Icons.gavel_outlined, Icons.gavel),
+        ? [
+            (locale.tr('tab_home'), Icons.home_outlined, Icons.home),
+            (locale.tr('tab_calendar'), Icons.calendar_today_outlined, Icons.calendar_today),
+            (locale.isFilipino ? 'Reklamo' : 'Complaints', Icons.assignment_outlined, Icons.assignment),
+            (locale.tr('tab_hearings'), Icons.gavel_outlined, Icons.gavel),
           ]
-        : const [
-            ('Dashboard', Icons.dashboard_outlined, Icons.dashboard),
-            ('Calendar', Icons.calendar_today_outlined, Icons.calendar_today),
-            ('Inbox', Icons.inbox_outlined, Icons.inbox),
-            ('Cases', Icons.folder_outlined, Icons.folder),
+        : [
+            (locale.tr('tab_dashboard'), Icons.dashboard_outlined, Icons.dashboard),
+            (locale.tr('tab_calendar'), Icons.calendar_today_outlined, Icons.calendar_today),
+            (locale.tr('tab_inbox'), Icons.inbox_outlined, Icons.inbox),
+            (locale.tr('tab_cases'), Icons.folder_outlined, Icons.folder),
           ];
 
     return SafeArea(
@@ -578,7 +580,7 @@ class _MainShellState extends State<MainShell> {
   Widget _buildNavDrawer(BuildContext context, bool isResident, int selectedIndex) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = context.watch<AuthProvider>().user;
-    final destinations = isResident ? _buildResidentDestinations() : _buildAdminDestinations();
+    final destinations = isResident ? _buildResidentDestinations(context) : _buildAdminDestinations(context);
     final accentRed = isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500;
     final selectedBg = isDark
         ? AppTheme.crimsonDarkAccent.withValues(alpha: 0.16)
@@ -828,31 +830,37 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  List<NavigationRailDestination> _buildResidentDestinations() => const [
-    NavigationRailDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: Text('Dashboard')),
-    NavigationRailDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: Text('Calendar')),
-    NavigationRailDestination(icon: Icon(Icons.assignment_outlined), selectedIcon: Icon(Icons.assignment), label: Text('My Complaints')),
-    NavigationRailDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: Text('My Hearings')),
-    NavigationRailDestination(icon: Icon(Icons.file_present_outlined), selectedIcon: Icon(Icons.file_present), label: Text('My Documents')),
-    NavigationRailDestination(icon: Icon(Icons.notifications_outlined), selectedIcon: Icon(Icons.notifications), label: Text('Notifications')),
-    NavigationRailDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: Text('Announcements')),
-    NavigationRailDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: Text('My Profile')),
-    NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: Text('Settings')),
-  ];
+  List<NavigationRailDestination> _buildResidentDestinations(BuildContext context) {
+    final locale = context.watch<LocaleProvider>();
+    return [
+      NavigationRailDestination(icon: const Icon(Icons.dashboard_outlined), selectedIcon: const Icon(Icons.dashboard), label: Text(locale.tr('tab_home'))),
+      NavigationRailDestination(icon: const Icon(Icons.calendar_today_outlined), selectedIcon: const Icon(Icons.calendar_today), label: Text(locale.tr('tab_calendar'))),
+      NavigationRailDestination(icon: const Icon(Icons.assignment_outlined), selectedIcon: const Icon(Icons.assignment), label: Text(locale.isFilipino ? 'Reklamo' : 'Complaints')),
+      NavigationRailDestination(icon: const Icon(Icons.calendar_month_outlined), selectedIcon: const Icon(Icons.calendar_month), label: Text(locale.tr('tab_hearings'))),
+      const NavigationRailDestination(icon: Icon(Icons.file_present_outlined), selectedIcon: Icon(Icons.file_present), label: Text('Documents')),
+      NavigationRailDestination(icon: const Icon(Icons.notifications_outlined), selectedIcon: const Icon(Icons.notifications), label: Text(locale.tr('notifications'))),
+      const NavigationRailDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: Text('Announcements')),
+      const NavigationRailDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: Text('My Profile')),
+      NavigationRailDestination(icon: const Icon(Icons.settings_outlined), selectedIcon: const Icon(Icons.settings), label: Text(locale.tr('settings_title'))),
+    ];
+  }
 
-  List<NavigationRailDestination> _buildAdminDestinations() => const [
-    NavigationRailDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: Text('Dashboard')),
-    NavigationRailDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: Text('Calendar')),
-    NavigationRailDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox), label: Text('Complaints Inbox')),
-    NavigationRailDestination(icon: Icon(Icons.folder_shared_outlined), selectedIcon: Icon(Icons.folder_shared), label: Text('Blotter Records')),
-    NavigationRailDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people), label: Text('Residents')),
-    NavigationRailDestination(icon: Icon(Icons.event_note_outlined), selectedIcon: Icon(Icons.event_note), label: Text('Hearings')),
-    NavigationRailDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: Text('Announcements')),
-    NavigationRailDestination(icon: Icon(Icons.summarize_outlined), selectedIcon: Icon(Icons.summarize), label: Text('Reports')),
-    NavigationRailDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: Text('Incident Map')),
-    NavigationRailDestination(icon: Icon(Icons.manage_accounts_outlined), selectedIcon: Icon(Icons.manage_accounts), label: Text('Users')),
-    NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: Text('Settings')),
-  ];
+  List<NavigationRailDestination> _buildAdminDestinations(BuildContext context) {
+    final locale = context.watch<LocaleProvider>();
+    return [
+      NavigationRailDestination(icon: const Icon(Icons.analytics_outlined), selectedIcon: const Icon(Icons.analytics), label: Text(locale.tr('tab_dashboard'))),
+      NavigationRailDestination(icon: const Icon(Icons.calendar_today_outlined), selectedIcon: const Icon(Icons.calendar_today), label: Text(locale.tr('tab_calendar'))),
+      NavigationRailDestination(icon: const Icon(Icons.inbox_outlined), selectedIcon: const Icon(Icons.inbox), label: Text(locale.tr('tab_inbox'))),
+      NavigationRailDestination(icon: const Icon(Icons.folder_shared_outlined), selectedIcon: const Icon(Icons.folder_shared), label: Text(locale.tr('tab_cases'))),
+      const NavigationRailDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people), label: Text('Residents')),
+      NavigationRailDestination(icon: const Icon(Icons.event_note_outlined), selectedIcon: const Icon(Icons.event_note), label: Text(locale.tr('tab_hearings'))),
+      const NavigationRailDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: Text('Announcements')),
+      const NavigationRailDestination(icon: Icon(Icons.summarize_outlined), selectedIcon: Icon(Icons.summarize), label: Text('Reports')),
+      const NavigationRailDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: Text('Incident Map')),
+      const NavigationRailDestination(icon: Icon(Icons.manage_accounts_outlined), selectedIcon: Icon(Icons.manage_accounts), label: Text('Users')),
+      NavigationRailDestination(icon: const Icon(Icons.settings_outlined), selectedIcon: const Icon(Icons.settings), label: Text(locale.tr('settings_title'))),
+    ];
+  }
 
   Widget _buildSidebarLogo(ThemeData theme) {
     return Padding(
