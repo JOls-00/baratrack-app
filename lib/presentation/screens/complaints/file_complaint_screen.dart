@@ -1,14 +1,16 @@
-import 'dart:convert';
 import 'package:dio/dio.dart' show DioException;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'location_picker.dart';
 import '../../../config/app_theme.dart';
+import '../../../core/network/connectivity_provider.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/offline_queue_item.dart';
+import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/resident_provider.dart';
@@ -17,7 +19,8 @@ import '../../../data/models/resident_model.dart';
 import '../profile/resident_registration_screen.dart';
 
 class FileComplaintScreen extends StatefulWidget {
-  const FileComplaintScreen({super.key});
+  final String? draftId;
+  const FileComplaintScreen({super.key, this.draftId});
 
   @override
   State<FileComplaintScreen> createState() => _FileComplaintScreenState();
@@ -26,6 +29,7 @@ class FileComplaintScreen extends StatefulWidget {
 class _FileComplaintScreenState extends State<FileComplaintScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
+  String? _currentDraftId;
   
   // Selection state
   ResidentModel? _selectedRespondent;
@@ -58,22 +62,43 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDraft();
+    _currentDraftId = widget.draftId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDraft();
+    });
   }
 
   Future<void> _loadDraft() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final draftStr = prefs.getString('complaint_offline_draft');
-      if (draftStr != null && draftStr.isNotEmpty) {
-        final draft = jsonDecode(draftStr) as Map<String, dynamic>;
+      final queueRepo = context.read<OfflineQueueRepository>();
+      OfflineQueueItem? item;
+      if (_currentDraftId != null) {
+        item = await queueRepo.getById(_currentDraftId!);
+      } else {
+        final drafts = await queueRepo.getAll();
+        item = drafts.where((d) => d.type == 'complaint' && (d.state == 'draft' || d.state == 'failed')).firstOrNull;
+      }
+
+      if (item != null && mounted) {
+        final payload = item.payload;
         setState(() {
-          _narrativeController.text = draft['narrative'] ?? '';
-          _locationController.text = draft['location'] ?? '';
-          if (_categories.contains(draft['category'])) {
-            _selectedCategory = draft['category'];
+          _currentDraftId = item!.id;
+          _narrativeController.text = payload['narrative']?.toString() ?? '';
+          _locationController.text = payload['location']?.toString() ?? '';
+          if (_categories.contains(payload['category'])) {
+            _selectedCategory = payload['category'].toString();
           }
-          _respondentUnknown = draft['respondent_unknown'] == true;
+          if (payload['latitude'] != null && payload['longitude'] != null) {
+            _incidentPoint = LatLng(
+              (payload['latitude'] as num).toDouble(),
+              (payload['longitude'] as num).toDouble(),
+            );
+          }
+          if (payload['incident_date'] != null) {
+            final parsedDate = DateTime.tryParse(payload['incident_date'].toString());
+            if (parsedDate != null) _incidentDate = parsedDate;
+          }
+          _respondentUnknown = payload['respondent_unknown'] == true;
           _hasDraftRestored = true;
         });
       }
@@ -82,15 +107,47 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
   Future<void> _saveDraft({bool showNotice = true}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final draft = {
-        'narrative': _narrativeController.text,
-        'location': _locationController.text,
+      final queueRepo = context.read<OfflineQueueRepository>();
+      final user = context.read<AuthProvider>().user;
+
+      final copiedPaths = <String>[];
+      for (final f in _selectedFiles) {
+        if (f.path != null && f.path!.isNotEmpty) {
+          final copied = await queueRepo.copyEvidenceToAppDir(f.path!);
+          copiedPaths.add(copied);
+        }
+      }
+
+      final draftId = _currentDraftId ?? queueRepo.newUuid();
+      final payload = {
+        'title': 'Complaint: $_selectedCategory',
         'category': _selectedCategory,
+        'incident_type': _selectedCategory,
+        'narrative': _narrativeController.text.trim(),
+        'location': _locationController.text.trim(),
+        'incident_date': _incidentDate.toIso8601String().split('T')[0],
+        'incident_time': '${_incidentTime.hour.toString().padLeft(2, '0')}:${_incidentTime.minute.toString().padLeft(2, '0')}:00',
         'respondent_unknown': _respondentUnknown,
-        'saved_at': DateTime.now().toIso8601String(),
+        'respondent_name': _selectedRespondent?.fullName,
+        'respondent_id': _selectedRespondent?.id,
+        'latitude': _incidentPoint?.latitude,
+        'longitude': _incidentPoint?.longitude,
       };
-      await prefs.setString('complaint_offline_draft', jsonEncode(draft));
+
+      final draftItem = OfflineQueueItem(
+        id: draftId,
+        type: 'complaint',
+        payload: payload,
+        evidencePaths: copiedPaths,
+        ownerId: user?.id,
+        ownerName: user?.name,
+        deviceTime: DateTime.now(),
+        state: 'draft',
+      );
+
+      await queueRepo.save(draftItem);
+      _currentDraftId = draftId;
+
       if (showNotice && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -100,13 +157,16 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           ),
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FileComplaintScreen] saveDraft error: $e');
+    }
   }
 
   Future<void> _clearDraft() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('complaint_offline_draft');
+      if (_currentDraftId != null) {
+        await context.read<OfflineQueueRepository>().delete(_currentDraftId!);
+      }
       setState(() => _hasDraftRestored = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -318,12 +378,11 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
-    final isRegistered = user?.residentId != null;
-
-    if (!isRegistered) {
-      return _buildRegistrationRequiredUI();
-    }
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+    final connectivity = context.watch<ConnectivityProvider>();
+    final isOffline = !connectivity.isOnline || AppRouter.userChoseOffline;
+    final isOfflineResident = isOffline && (user?.role == 'Resident');
 
     return Scaffold(
       appBar: AppBar(
@@ -438,6 +497,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                   const SizedBox(height: 10),
                   LocationPicker(
                     value: _incidentPoint,
+                    hidePinMap: isOffline,
                     onChanged: (p) => setState(() => _incidentPoint = p),
                     onAddress: (a) {
                       // Fill the field only if it is empty or still holds our own earlier suggestion.
@@ -502,14 +562,19 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _isSubmitting ? null : _submitForm,
+                      onPressed: (_isSubmitting || isOfflineResident) ? null : _submitForm,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: context.brand,
                         foregroundColor: Colors.white,
                       ),
                       child: _isSubmitting 
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Submit Complaint', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          : Text(
+                              isOfflineResident
+                                  ? "Submit when you're back online"
+                                  : 'Submit Complaint',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -630,29 +695,6 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
             label: Text(_selectedFiles.isEmpty ? 'Choose Files' : 'Add More Files'),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRegistrationRequiredUI() {
-    return Scaffold(
-      appBar: AppBar(title: const Text('File a New Complaint')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.verified_user_outlined, size: 80, color: Colors.grey),
-              const SizedBox(height: 24),
-              const Text('Resident Verification Required', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              const Text('Your account is not yet linked to the official Barangay Registry. Please complete your resident profile to proceed with legal filings.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 32),
-              ElevatedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ResidentRegistrationScreen())), child: const Text('Complete Resident Profile')),
-            ],
-          ),
-        ),
       ),
     );
   }

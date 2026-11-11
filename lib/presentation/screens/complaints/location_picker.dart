@@ -23,7 +23,15 @@ class LocationPicker extends StatefulWidget {
 
   /// Called with a readable address once the pin lands somewhere (so the form can fill itself in).
   final ValueChanged<String>? onAddress;
-  const LocationPicker({super.key, required this.value, required this.onChanged, this.onAddress});
+  final bool hidePinMap;
+
+  const LocationPicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.onAddress,
+    this.hidePinMap = false,
+  });
 
   @override
   State<LocationPicker> createState() => _LocationPickerState();
@@ -31,13 +39,19 @@ class LocationPicker extends StatefulWidget {
 
 class _LocationPickerState extends State<LocationPicker> {
   final MapController _map = MapController();
-  _LocMode _mode = _LocMode.pin;
+  late _LocMode _mode;
   BaseMapKind _style = BaseMapKind.satellite;
   bool _locating = false;
   String? _msg;
   String? _geoNote;
   Timer? _geoTimer;
   int _geoSeq = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.hidePinMap ? _LocMode.gps : _LocMode.pin;
+  }
 
   @override
   void dispose() {
@@ -125,10 +139,11 @@ class _LocationPickerState extends State<LocationPicker> {
             padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 4)),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          segments: const [
-            ButtonSegment(value: _LocMode.gps, icon: Icon(Icons.my_location, size: 16), label: Text('GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-            ButtonSegment(value: _LocMode.pin, icon: Icon(Icons.push_pin_outlined, size: 16), label: Text('Pin Map', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-            ButtonSegment(value: _LocMode.address, icon: Icon(Icons.edit_location_alt_outlined, size: 16), label: Text('Address', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+          segments: [
+            const ButtonSegment(value: _LocMode.gps, icon: Icon(Icons.my_location, size: 16), label: Text('GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+            if (!widget.hidePinMap)
+              const ButtonSegment(value: _LocMode.pin, icon: Icon(Icons.push_pin_outlined, size: 16), label: Text('Pin Map', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+            const ButtonSegment(value: _LocMode.address, icon: Icon(Icons.edit_location_alt_outlined, size: 16), label: Text('Address', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
           ],
           selected: {_mode},
           onSelectionChanged: (s) {
@@ -149,7 +164,48 @@ class _LocationPickerState extends State<LocationPicker> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: primary.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
-            child: const Text('Walang pin. Ilagay ang address sa "Place of Incident" sa itaas. Puwede mo pa ring i-pin sa mapa anumang oras.'),
+            child: const Text('Walang pin. Ilagay ang address sa "Place of Incident" sa itaas.'),
+          )
+        else if (widget.hidePinMap)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: primary.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.gps_fixed, color: primary, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        point != null
+                            ? 'GPS: Lat ${point.latitude.toStringAsFixed(4)}, Lng ${point.longitude.toStringAsFixed(4)}'
+                            : 'Offline Mode: Pin Map is hidden. Use device GPS or type address.',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      if (_msg != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(_msg!, style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
+                        ),
+                    ],
+                  ),
+                ),
+                if (_locating)
+                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh GPS',
+                    onPressed: _useGps,
+                  ),
+              ],
+            ),
           )
         else ...[
           ClipRRect(
