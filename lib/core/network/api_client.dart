@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../config/app_constants.dart';
+import '../router/app_router.dart';
 
 class ApiClient {
   late Dio _dio;
@@ -40,6 +41,7 @@ class ApiClient {
           friendly = 'The server is taking too long to answer. It may be waking up, so please try again in a minute.';
         } else if (e.type == DioExceptionType.connectionError) {
           friendly = 'Cannot reach the server. Please check your internet connection.';
+          AppRouter.promptOfflineMode();
         } else {
           friendly = 'Something went wrong (${e.response?.statusCode ?? 'no response'}). Please try again.';
         }

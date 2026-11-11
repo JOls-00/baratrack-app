@@ -195,46 +195,199 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _showErrorSnackBar(String err) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(err),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     setState(() => _topFormError = null);
 
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = context.read<AuthProvider>();
-
-    // Clean mobile number (strip spaces)
-    final rawMobile = _mobileController.text.replaceAll(' ', '').trim();
-
-    if (_captchaId == null || _captchaAnswerController.text.trim().isEmpty) {
-      const err = 'Please answer the security verification question.';
-      setState(() => _topFormError = err);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(err),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(20),
-        ),
-      );
-      return;
+    if (_selectedRole == 'Resident') {
+      if (_selectedIdType.trim().isEmpty) {
+        const err = 'Please select your Valid ID Type.';
+        setState(() => _topFormError = err);
+        _showErrorSnackBar(err);
+        return;
+      }
+      if (_idNumberController.text.trim().isEmpty) {
+        const err = 'Please enter your Valid ID Number.';
+        setState(() => _topFormError = err);
+        _showErrorSnackBar(err);
+        return;
+      }
+      if (_validIdBase64 == null || _validIdFile == null) {
+        const err = 'Please capture or upload a clear photo of your Valid ID.';
+        setState(() => _topFormError = err);
+        _showErrorSnackBar(err);
+        return;
+      }
     }
 
     if (!_acceptedTerms) {
       const err = 'You must agree to the Terms of Service and Privacy Policy.';
       setState(() => _topFormError = err);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(err),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(20),
-        ),
-      );
+      _showErrorSnackBar(err);
       return;
     }
 
-    // Split the single "Full Name" box: first word = first name, the rest = last name.
+    // Move to dedicated Security Verification step
+    await _showSecurityVerificationModal();
+  }
+
+  Future<void> _showSecurityVerificationModal() async {
+    if (_captchaId == null) {
+      await _fetchCaptcha();
+    }
+    if (!mounted) return;
+
+    _captchaAnswerController.clear();
+    String? localError;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            final authProvider = modalContext.watch<AuthProvider>();
+            final isBusy = authProvider.status == AuthStatus.authenticating;
+
+            return Container(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: context.brand.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.security_rounded, color: context.brand, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Security Verification',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.darkNavy),
+                            ),
+                            Text(
+                              'Please answer to verify you are human',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: isBusy ? null : () => Navigator.pop(bottomSheetContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _isLoadingCaptcha
+                              ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                              : Text(
+                                  _captchaQuestion ?? 'Loading challenge...',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.brand),
+                                  textAlign: TextAlign.center,
+                                ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.refresh, color: context.brand),
+                          onPressed: isBusy || _isLoadingCaptcha
+                              ? null
+                              : () async {
+                                  await _fetchCaptcha();
+                                  setModalState(() => localError = null);
+                                },
+                          tooltip: 'Reload challenge',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _captchaAnswerController,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Your Answer',
+                      hintText: 'Enter numerical answer',
+                      prefixIcon: const Icon(Icons.calculate_outlined),
+                      errorText: localError,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onSubmitted: isBusy ? null : (_) => _performRegistration(bottomSheetContext, setModalState),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: context.brand,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: isBusy ? null : () => _performRegistration(bottomSheetContext, setModalState),
+                    child: isBusy
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Verify & Create Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _performRegistration(BuildContext sheetContext, StateSetter setModalState) async {
+    final ans = _captchaAnswerController.text.trim();
+    if (ans.isEmpty) {
+      setModalState(() => _topFormError = null);
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    final rawMobile = _mobileController.text.replaceAll(' ', '').trim();
     final nameParts = _fullNameController.text.trim().split(RegExp(r'\s+'));
+
     final res = await authProvider.register(
       firstName: nameParts.first,
       middleName: null,
@@ -245,18 +398,20 @@ class _LoginScreenState extends State<LoginScreen> {
       validIdBase64: _validIdBase64,
       email: _emailController.text.trim(),
       mobile: rawMobile,
-      username: '', // the server creates it from the first name
+      username: '',
       password: _passwordController.text,
       captchaId: _captchaId ?? '',
-      captchaAnswer: _captchaAnswerController.text.trim(),
+      captchaAnswer: ans,
       acceptedTerms: _acceptedTerms,
     );
 
     if (!mounted) return;
 
     if (res['otpRequired'] == true) {
+      Navigator.pop(sheetContext); // Close modal
       context.push('/otp-verification', extra: {'email': res['email']});
     } else if (res['isPending'] == true) {
+      Navigator.pop(sheetContext);
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -267,30 +422,11 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } else if (res['success'] == false) {
       final errorMsg = res['error'] ?? authProvider.error ?? 'Registration failed';
-
-      // Auto-fetch a fresh CAPTCHA challenge on failed attempt
-      _fetchCaptcha();
-
-      setState(() {
+      await _fetchCaptcha();
+      _captchaAnswerController.clear();
+      setModalState(() {
         _topFormError = errorMsg;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(20),
-        ),
-      );
-
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
     }
   }
 
@@ -675,69 +811,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // CAPTCHA Challenge Box
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: context.brand.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.brand.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Security Verification',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.darkNavy),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: _isLoadingCaptcha
-                              ? const Center(child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)))
-                              : Text(
-                                  _captchaQuestion ?? "Couldn't load security check. Tap refresh.",
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: context.brand),
-                                  textAlign: TextAlign.center,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(Icons.refresh, color: context.brand),
-                        onPressed: isLoading || _isLoadingCaptcha ? null : _fetchCaptcha,
-                        tooltip: 'Refresh Security Challenge',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _captchaAnswerController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter Answer',
-                      prefixIcon: Icon(Icons.shield_outlined),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Please answer the security verification question';
-                      }
-                      return null;
-                    },
-                  ),
                 ],
               ),
             ),

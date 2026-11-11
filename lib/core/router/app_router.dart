@@ -30,12 +30,76 @@ import '../../presentation/screens/notifications/notifications_view.dart';
 import '../../presentation/screens/announcements/announcements_view.dart';
 import '../../presentation/screens/profile/profile_editor_view.dart';
 import '../../presentation/providers/auth_provider.dart';
+import '../../presentation/screens/offline/offline_mode_screen.dart';
 
 class AppRouter {
   // Stable notifier for router refreshes
   static final authNotifier = ValueNotifier<AuthStatus>(AuthStatus.unauthenticated);
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static bool _isShowingOfflineDialog = false;
+
+  static void promptOfflineMode() {
+    final context = navigatorKey.currentContext;
+    if (context == null || _isShowingOfflineDialog) return;
+
+    _isShowingOfflineDialog = true;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.wifi_off_rounded, color: Colors.amber.shade900, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Walang Koneksyon',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Hindi maabot ang internet o server. Nais mo bang lumipat sa Offline Mode para ma-access ang iyong mga naka-save na reklamo at iskedyul?',
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _isShowingOfflineDialog = false;
+              Navigator.pop(ctx);
+            },
+            child: const Text('Kanselahin', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD61314),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.offline_pin_rounded, size: 18),
+            label: const Text('Lumipat sa Offline Mode', style: TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: () {
+              _isShowingOfflineDialog = false;
+              Navigator.pop(ctx);
+              router.push('/offline');
+            },
+          ),
+        ],
+      ),
+    ).then((_) => _isShowingOfflineDialog = false);
+  }
 
   static final GoRouter router = GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: '/',
     refreshListenable: authNotifier,
     redirect: (context, state) {
@@ -43,6 +107,7 @@ class AppRouter {
       final isUnauthRoute = path == '/pending-approval' ||
           path == '/otp-verification' ||
           path == '/forgot-password' ||
+          path == '/offline' ||
           PortalRoutes.isPublic(path);
       final status = authNotifier.value;
 
@@ -59,6 +124,10 @@ class AppRouter {
     },
     routes: [
       ...PortalRoutes.routes,
+      GoRoute(
+        path: '/offline',
+        builder: (context, state) => const OfflineModeScreen(),
+      ),
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) {

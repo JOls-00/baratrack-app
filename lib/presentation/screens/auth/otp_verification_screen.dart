@@ -111,6 +111,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         _focusNodes[index + 1].requestFocus();
       } else {
         _focusNodes[index].unfocus();
+        if (_isComplete) {
+          _submitOtp();
+        }
       }
     } else if (digits.isNotEmpty) {
       // Single digit input
@@ -122,6 +125,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         _focusNodes[index + 1].requestFocus();
       } else {
         _focusNodes[index].unfocus();
+        if (_isComplete) {
+          _submitOtp();
+        }
       }
     } else {
       // Digit cleared
@@ -230,7 +236,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               child: Card(
                 elevation: 4,
                 child: Padding(
-                  padding: const EdgeInsets.all(28.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -271,43 +277,44 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
                       const SizedBox(height: 28),
 
-                      // 6-digit OTP Inputs
+                      // 6-digit OTP Inputs (Responsive & Non-Overlapping)
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(_codeLength, (index) {
-                          return SizedBox(
-                            width: 48,
-                            height: 56,
-                            child: KeyboardListener(
-                              focusNode: _keyboardFocusNodes[index],
-                              onKeyEvent: (event) => _onKeyEvent(index, event),
-                              child: TextField(
-                                controller: _controllers[index],
-                                focusNode: _focusNodes[index],
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.darkNavy,
-                                ),
-                                decoration: InputDecoration(
-                                  counterText: '',
-                                  contentPadding: EdgeInsets.zero,
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.grey.shade400),
+                          return Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              height: 56,
+                              child: KeyboardListener(
+                                focusNode: _keyboardFocusNodes[index],
+                                onKeyEvent: (event) => _onKeyEvent(index, event),
+                                child: TextField(
+                                  controller: _controllers[index],
+                                  focusNode: _focusNodes[index],
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.darkNavy,
                                   ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: context.brand, width: 2),
+                                  decoration: InputDecoration(
+                                    counterText: '',
+                                    contentPadding: EdgeInsets.zero,
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: Colors.grey.shade400),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: context.brand, width: 2),
+                                    ),
                                   ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(6),
+                                  ],
+                                  onChanged: (value) => _onDigitChanged(index, value),
                                 ),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(6),
-                                ],
-                                onChanged: (value) => _onDigitChanged(index, value),
                               ),
                             ),
                           );
