@@ -41,6 +41,8 @@ import 'data/repositories/version_repository.dart';
 import 'presentation/providers/version_provider.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  AuthRepository.checkCacheExpiry();
   final apiClient = ApiClient();
 
   runApp(

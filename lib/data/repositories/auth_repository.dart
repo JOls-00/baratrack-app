@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_constants.dart';
 import '../../core/network/api_client.dart';
 import '../models/user_model.dart';
@@ -240,6 +241,30 @@ class AuthRepository {
   Future<void> logout() async {
     await _storage.delete(key: AppConstants.tokenKey);
     await _storage.delete(key: AppConstants.userDataKey);
+
+    // Privacy (Task 12): wipe cached cases, hearings, and timestamps on logout
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('offline_cached_cases');
+      await prefs.remove('offline_cached_hearings');
+      await prefs.remove('offline_cache_timestamp');
+    } catch (_) {}
+  }
+
+  /// Automatically wipes offline cache if more than 14 days have passed without sync
+  static Future<void> checkCacheExpiry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final timeStr = prefs.getString('offline_cache_timestamp');
+      if (timeStr != null) {
+        final cacheTime = DateTime.tryParse(timeStr);
+        if (cacheTime != null && DateTime.now().difference(cacheTime).inDays >= 14) {
+          await prefs.remove('offline_cached_cases');
+          await prefs.remove('offline_cached_hearings');
+          await prefs.remove('offline_cache_timestamp');
+        }
+      }
+    } catch (_) {}
   }
 
   Future<UserModel?> getCurrentUser() async {
