@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_theme.dart';
+import '../../../core/router/app_router.dart';
 import '../../screens/complaints/file_complaint_screen.dart';
 
 class OfflineModeScreen extends StatefulWidget {
@@ -120,12 +121,9 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Bumalik sa Online Mode',
           onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              context.go('/');
-            }
+            AppRouter.exitOfflineMode();
           },
         ),
         actions: [

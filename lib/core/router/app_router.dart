@@ -36,9 +36,11 @@ class AppRouter {
   // Stable notifier for router refreshes
   static final authNotifier = ValueNotifier<AuthStatus>(AuthStatus.unauthenticated);
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static bool userChoseOffline = false;
   static bool _isShowingOfflineDialog = false;
 
   static void promptOfflineMode() {
+    if (userChoseOffline) return;
     final context = navigatorKey.currentContext;
     if (context == null || _isShowingOfflineDialog) return;
 
@@ -89,13 +91,24 @@ class AppRouter {
             label: const Text('Lumipat sa Offline Mode', style: TextStyle(fontWeight: FontWeight.bold)),
             onPressed: () {
               _isShowingOfflineDialog = false;
+              userChoseOffline = true;
               Navigator.pop(ctx);
-              router.push('/offline');
+              router.go('/offline');
             },
           ),
         ],
       ),
     ).then((_) => _isShowingOfflineDialog = false);
+  }
+
+  static void exitOfflineMode() {
+    userChoseOffline = false;
+    final status = authNotifier.value;
+    if (status == AuthStatus.authenticated) {
+      router.go('/');
+    } else {
+      router.go(kIsWeb ? '/welcome' : '/login');
+    }
   }
 
   static final GoRouter router = GoRouter(
@@ -104,10 +117,12 @@ class AppRouter {
     refreshListenable: authNotifier,
     redirect: (context, state) {
       final path = state.uri.path;
+      if (path == '/offline') {
+        return null;
+      }
       final isUnauthRoute = path == '/pending-approval' ||
           path == '/otp-verification' ||
           path == '/forgot-password' ||
-          path == '/offline' ||
           PortalRoutes.isPublic(path);
       final status = authNotifier.value;
 
