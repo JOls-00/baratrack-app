@@ -40,7 +40,7 @@ class ComplaintProvider extends ChangeNotifier {
   Future<List<IncidentPin>> loadIncidentPins({String? from, String? to}) => _repository.getIncidentMap(dateFrom: from, dateTo: to);
 
   Future<int> submitComplaint({
-    required int complainantId,
+    required int? complainantId,
     int? respondentId,
     required String category,
     required String location,
@@ -49,6 +49,7 @@ class ComplaintProvider extends ChangeNotifier {
     required String details,
     double? latitude,
     double? longitude,
+    String? clientUuid,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -74,6 +75,7 @@ class ComplaintProvider extends ChangeNotifier {
         if (latitude != null && longitude != null) 'longitude': longitude,
         'incident_date': date,
         'incident_time': time,
+        if (clientUuid != null) 'client_uuid': clientUuid,
       });
       
       await fetchMyComplaints();

@@ -31,6 +31,7 @@ import '../../presentation/screens/announcements/announcements_view.dart';
 import '../../presentation/screens/profile/profile_editor_view.dart';
 import '../../presentation/providers/auth_provider.dart';
 import '../../presentation/screens/offline/offline_mode_screen.dart';
+import '../../presentation/screens/offline/offline_drafts_screen.dart';
 
 class AppRouter {
   // Stable notifier for router refreshes
@@ -144,6 +145,10 @@ class AppRouter {
       GoRoute(
         path: '/offline',
         builder: (context, state) => const OfflineModeScreen(),
+      ),
+      GoRoute(
+        path: '/offline-drafts',
+        builder: (context, state) => const OfflineDraftsScreen(),
       ),
       GoRoute(
         path: '/forgot-password',
