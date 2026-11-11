@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
+import '../../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
 
 /// "Continue with Google / Facebook" for residents. Only the providers the server has
@@ -37,8 +38,20 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
   }
 
   Future<void> _google() async {
-    final auth = context.read<AuthProvider>();
     final id = _cfg?['google_client_id']?.toString();
+    if (id == null || id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Google sign-in isn't available yet. Please log in with your email and password."),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final auth = context.read<AuthProvider>();
     setState(() {
       _busy = true;
       _error = null;
@@ -62,6 +75,19 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
   }
 
   Future<void> _facebook() async {
+    final id = _cfg?['facebook_app_id']?.toString();
+    if (id == null || id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Facebook sign-in isn't available yet. Please log in with your email and password."),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     final auth = context.read<AuthProvider>();
     setState(() {
       _busy = true;
@@ -70,7 +96,7 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
     try {
       if (kIsWeb) {
         await FacebookAuth.i.webAndDesktopInitialize(
-          appId: _cfg?['facebook_app_id']?.toString() ?? '',
+          appId: id,
           cookie: true,
           xfbml: true,
           version: 'v19.0',
@@ -89,9 +115,7 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
 
   @override
   Widget build(BuildContext context) {
-    final google = _cfg?['google'] == true;
-    final facebook = _cfg?['facebook'] == true;
-    if (!google && !facebook) return const SizedBox.shrink();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Widget button({required Widget icon, required String text, required VoidCallback? onTap}) => SizedBox(
           height: 44,
@@ -100,19 +124,24 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
             icon: icon,
             label: Text(
               text,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: isDark ? AppTheme.textPrimaryDark : const Color(0xFF1F2937),
+              ),
               overflow: TextOverflow.ellipsis,
             ),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1F2937),
-              side: const BorderSide(color: Color(0xFFD1D5DB), width: 1.0),
+              foregroundColor: isDark ? AppTheme.textPrimaryDark : const Color(0xFF1F2937),
+              side: BorderSide(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFD1D5DB),
+                width: 1.0,
+              ),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
           ),
         );
-
-    final both = google && facebook;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,55 +152,47 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Text(
               widget.label,
-              style: const TextStyle(color: Color(0xFF475569), fontSize: 13, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: isDark ? AppTheme.textHintDark : AppTheme.textHintLight,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           const Expanded(child: Divider()),
         ]),
         const SizedBox(height: 12),
-        if (both)
-          Row(
-            children: [
-              Expanded(
-                child: button(
-                  icon: const Text('G', style: TextStyle(color: Color(0xFFDB4437), fontSize: 18, fontWeight: FontWeight.w900)),
-                  text: 'Google',
-                  onTap: _busy ? null : _google,
-                ),
+        Row(
+          children: [
+            Expanded(
+              child: button(
+                icon: const Text('G', style: TextStyle(color: Color(0xFFDB4437), fontSize: 18, fontWeight: FontWeight.w900)),
+                text: 'Google',
+                onTap: _busy ? null : _google,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: button(
-                  icon: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 20),
-                  text: 'Facebook',
-                  onTap: _busy ? null : _facebook,
-                ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: button(
+                icon: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 20),
+                text: 'Facebook',
+                onTap: _busy ? null : _facebook,
               ),
-            ],
-          )
-        else ...[
-          if (google)
-            button(
-              icon: const Text('G', style: TextStyle(color: Color(0xFFDB4437), fontSize: 18, fontWeight: FontWeight.w900)),
-              text: 'Continue with Google',
-              onTap: _busy ? null : _google,
             ),
-          if (facebook)
-            button(
-              icon: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 20),
-              text: 'Continue with Facebook',
-              onTap: _busy ? null : _facebook,
-            ),
-        ],
+          ],
+        ),
         if (_error != null) ...[
           const SizedBox(height: 10),
           Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
         ],
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Para sa mga residente lamang. Sa pag-continue, sumasang-ayon ka sa Terms of Use.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+          style: TextStyle(
+            color: isDark ? AppTheme.textHintDark : AppTheme.textHintLight,
+            fontSize: 11,
+          ),
         ),
       ],
     );

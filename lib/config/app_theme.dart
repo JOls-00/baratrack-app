@@ -15,14 +15,24 @@ class AppTheme {
   static double sideMargin(BuildContext context) =>
       MediaQuery.of(context).size.width <= 320 ? space12 : space16;
 
-  // Official Brand Hue Shades (Crimson #D61314: 5 shades of varying saturation & brightness)
-  static const Color brand50 = Color(0xFFFEF2F2);   // soft tinted background / subtle pills
-  static const Color brand100 = Color(0xFFFEE2E2);  // borders / alert badge backgrounds
-  static const Color brand500 = Color(0xFFD61314);  // primary brand hue
-  static const Color brand700 = Color(0xFFB91C1C);  // interactive hover / active
-  static const Color brand900 = Color(0xFF7F1D1D);  // deep headings / primary dark
+  // Official Brand Hue Shades (Barangay Crimson #D61314)
+  static const Color brand50 = Color(0xFFFEF2F2);
+  static const Color brand100 = Color(0xFFFEE2E2);
+  static const Color brand500 = Color(0xFFD61314);  // Primary Barangay Crimson
+  static const Color brand700 = Color(0xFFB91C1C);  // Interactive hover / pressed
+  static const Color brand900 = Color(0xFF7F1D1D);  // Deep headers
+  static const Color brandTint = Color(0x1AD61314); // ~10% opacity Crimson tint
+  static const Color crimsonDarkAccent = Color(0xFFFF6B6E); // Lighter red for Dark Mode text/icons (>4.5:1 on #0F172A)
 
-  // Semantic Alert & Feedback Tokens
+  // Surface & Scaffold Foundation Tokens (Task 39)
+  static const Color scaffoldLight = Color(0xFFF8FAFC);
+  static const Color scaffoldDark = Color(0xFF0F172A);
+  static const Color surfaceLight = Color(0xFFFFFFFF);
+  static const Color surfaceDark = Color(0xFF1E293B);
+  static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color borderDark = Color(0xFF334155);
+
+  // Semantic Alert & Feedback Tokens (Single set, always paired with icon + label)
   static const Color success = Color(0xFF16A34A);
   static const Color warning = Color(0xFFD97706);
   static const Color error = Color(0xFFDC2626);
@@ -30,18 +40,19 @@ class AppTheme {
   static const Color warningBg = Color(0xFFFFFBEB);
   static const Color errorBg = Color(0xFFFEF2F2);
 
-  // Accessible High-Contrast Neutral Tokens (WCAG 4.5:1 compliant)
-  static const Color textPrimaryLight = Color(0xFF0F172A);   // Slate 900
-  static const Color textSecondaryLight = Color(0xFF475569); // Slate 600 (>5.9:1 against white)
-  static const Color textMutedLight = Color(0xFF334155);     // Slate 700 (>8.3:1 against white)
+  // Accessible High-Contrast Neutral Text Tokens (WCAG 4.5:1 compliant)
+  static const Color textPrimaryLight = Color(0xFF0F172A);   // 15.8:1 on white
+  static const Color textSecondaryLight = Color(0xFF475569); // 6.0:1 on white
+  static const Color textHintLight = Color(0xFF64748B);      // 4.6:1 on white
+  static const Color textMutedLight = Color(0xFF334155);     // 8.3:1 on white
   
-  static const Color textPrimaryDark = Color(0xFFF8FAFC);    // Slate 50
-  static const Color textSecondaryDark = Color(0xFFCBD5E1);  // Slate 300 (>9.2:1 against surfaceDark)
-  static const Color textMutedDark = Color(0xFF94A3B8);      // Slate 400 (>5.4:1 against surfaceDark)
+  static const Color textPrimaryDark = Color(0xFFF1F5F9);    // 14.2:1 on #0F172A
+  static const Color textSecondaryDark = Color(0xFFCBD5E1);  // 7.8:1 on #1E293B
+  static const Color textHintDark = Color(0xFF94A3B8);       // 4.6:1 on #1E293B
+  static const Color textMutedDark = Color(0xFF94A3B8);
 
   // Legacy compatibility tokens
   static const Color blackish = Color(0xFF020617);
-  static const Color surfaceDark = Color(0xFF0F172A);
   static const Color wheat = Color(0xFFF5DEB3);
   static const Color caramel = Color(0xFFD97706);
   static const Color dustyRose = Color(0xFFFDA4AF);
@@ -75,8 +86,8 @@ class AppTheme {
           brightness: Brightness.light,
           primary: primaryOverride ?? brand500,
           secondary: brand700,
-          background: const Color(0xFFFFFBFA),
-          surface: Colors.white,
+          background: scaffoldLight,
+          surface: surfaceLight,
           onSurface: textPrimaryLight,
         );
       case ThemeCombo.dustyRoseWind:
@@ -84,25 +95,25 @@ class AppTheme {
           brightness: Brightness.light,
           primary: const Color(0xFFE11D48),
           secondary: dustyRose,
-          background: wind,
-          surface: Colors.white,
-          onSurface: textDark,
+          background: scaffoldLight,
+          surface: surfaceLight,
+          onSurface: textPrimaryLight,
         );
       case ThemeCombo.caramelWheat:
         return _buildTheme(
           brightness: Brightness.light,
           primary: caramel,
           secondary: const Color(0xFFB45309),
-          background: const Color(0xFFFFFBEB),
-          surface: Colors.white,
-          onSurface: textDark,
+          background: scaffoldLight,
+          surface: surfaceLight,
+          onSurface: textPrimaryLight,
         );
       case ThemeCombo.blackishCaramel:
         return _buildTheme(
           brightness: Brightness.dark,
           primary: brand500,
           secondary: brand700,
-          background: blackish,
+          background: scaffoldDark,
           surface: surfaceDark,
           onSurface: textPrimaryDark,
         );
@@ -120,6 +131,9 @@ class AppTheme {
     final isDark = brightness == Brightness.dark;
     final textTheme = isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme;
     final secTextColor = isDark ? textSecondaryDark : textSecondaryLight;
+    final hintColor = isDark ? textHintDark : textHintLight;
+    final borderColor = isDark ? borderDark : borderLight;
+    final accentRed = isDark ? crimsonDarkAccent : brand500;
 
     return ThemeData(
       useMaterial3: true,
@@ -131,8 +145,9 @@ class AppTheme {
         secondary: secondary,
         surface: surface,
         onSurface: onSurface,
+        surfaceTint: Colors.transparent,
       ),
-      scaffoldBackgroundColor: isDark ? background : Color.alphaBlend(primary.withValues(alpha: 0.05), background),
+      scaffoldBackgroundColor: isDark ? scaffoldDark : scaffoldLight,
       textTheme: GoogleFonts.interTextTheme(textTheme).copyWith(
         headlineLarge: GoogleFonts.inter(
           color: onSurface,
@@ -158,20 +173,20 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        elevation: isDark ? 0 : 2,
-        shadowColor: primary.withValues(alpha: 0.08),
+        elevation: isDark ? 0 : 1,
+        shadowColor: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
         surfaceTintColor: Colors.transparent,
         margin: const EdgeInsets.symmetric(horizontal: space12, vertical: space8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0), width: 1),
+          side: BorderSide(color: borderColor, width: 1),
         ),
         color: surface,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: onColor(primary),
+          backgroundColor: brand500, // Crimson #D61314 with white text in light & dark mode
+          foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size(44, 44),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -181,33 +196,69 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: primary,
+          foregroundColor: accentRed,
           minimumSize: const Size(44, 44),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
+          foregroundColor: onSurface,
           minimumSize: const Size(44, 44),
-          side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+          side: BorderSide(color: borderColor, width: 1),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
-      dividerTheme: DividerThemeData(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0), space: 1),
+      dividerTheme: DividerThemeData(color: borderColor, space: 1),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: accentRed,
+        unselectedLabelColor: hintColor,
+        indicatorColor: accentRed,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+        unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: isDark ? crimsonDarkAccent.withValues(alpha: 0.16) : brand500.withValues(alpha: 0.10),
+        surfaceTintColor: Colors.transparent,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(color: accentRed, size: 22);
+          }
+          return IconThemeData(color: hintColor, size: 22);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.inter(
+              color: accentRed,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              letterSpacing: -0.3,
+            );
+          }
+          return GoogleFonts.inter(
+            color: hintColor,
+            fontWeight: FontWeight.w500,
+            fontSize: 11,
+            letterSpacing: -0.3,
+          );
+        }),
+      ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: surface,
         useIndicator: true,
-        indicatorColor: primary.withValues(alpha: 0.16),
-        selectedIconTheme: IconThemeData(color: primary),
-        unselectedIconTheme: IconThemeData(color: onSurface.withValues(alpha: 0.45)),
-        selectedLabelTextStyle: GoogleFonts.inter(color: primary, fontWeight: FontWeight.w800, fontSize: 13),
-        unselectedLabelTextStyle: GoogleFonts.inter(color: secTextColor, fontWeight: FontWeight.w500, fontSize: 13),
+        indicatorColor: isDark ? crimsonDarkAccent.withValues(alpha: 0.16) : brand500.withValues(alpha: 0.10),
+        selectedIconTheme: IconThemeData(color: accentRed),
+        unselectedIconTheme: IconThemeData(color: hintColor),
+        selectedLabelTextStyle: GoogleFonts.inter(color: accentRed, fontWeight: FontWeight.w800, fontSize: 12),
+        unselectedLabelTextStyle: GoogleFonts.inter(color: hintColor, fontWeight: FontWeight.w500, fontSize: 12),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: surface,

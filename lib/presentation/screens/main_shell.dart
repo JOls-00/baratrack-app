@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/version_provider.dart';
 import '../../config/app_constants.dart';
+import '../../config/app_theme.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../../core/network/connectivity_provider.dart';
 import '../../data/repositories/offline_queue_repository.dart';
@@ -157,13 +158,12 @@ class _MainShellState extends State<MainShell> {
 
   /// Phone navigation: floating pill inset from edges with rounded corners and soft shadow.
   Widget _buildBottomBar(BuildContext context, bool isResident, int selectedIndex) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final items = isResident
         ? const [
             ('Home', Icons.home_outlined, Icons.home),
             ('Calendar', Icons.calendar_today_outlined, Icons.calendar_today),
-            ('Complaints', Icons.assignment_outlined, Icons.assignment),
+            ('Reklamo', Icons.assignment_outlined, Icons.assignment),
             ('Hearings', Icons.gavel_outlined, Icons.gavel),
           ]
         : const [
@@ -178,17 +178,18 @@ class _MainShellState extends State<MainShell> {
       child: Container(
         margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
         decoration: BoxDecoration(
-          color: theme.cardTheme.color ?? theme.colorScheme.surface,
+          color: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
           ],
           border: Border.all(
-            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+            width: 1,
           ),
         ),
         child: ClipRRect(
@@ -207,14 +208,25 @@ class _MainShellState extends State<MainShell> {
               }
             },
             destinations: [
-              for (final it in items)
+              for (int idx = 0; idx < items.length; idx++)
                 NavigationDestination(
-                  icon: Icon(it.$2, size: 22),
-                  selectedIcon: Icon(it.$3, size: 22),
-                  label: it.$1,
+                  icon: Semantics(
+                    label: items[idx].$1,
+                    selected: selectedIndex == idx,
+                    child: Icon(items[idx].$2, size: 22),
+                  ),
+                  selectedIcon: Semantics(
+                    label: items[idx].$1,
+                    selected: true,
+                    child: Icon(items[idx].$3, size: 22),
+                  ),
+                  label: items[idx].$1,
                 ),
-              const NavigationDestination(
-                icon: Icon(Icons.menu, size: 22),
+              NavigationDestination(
+                icon: Semantics(
+                  label: 'More menu',
+                  child: const Icon(Icons.menu, size: 22),
+                ),
                 label: 'More',
               ),
             ],
@@ -525,68 +537,205 @@ class _MainShellState extends State<MainShell> {
 
   // Menu for narrow windows / phones, where the side rail is hidden.
   Widget _buildNavDrawer(BuildContext context, bool isResident, int selectedIndex) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = context.watch<AuthProvider>().user;
     final destinations = isResident ? _buildResidentDestinations() : _buildAdminDestinations();
+    final accentRed = isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500;
+    final selectedBg = isDark
+        ? AppTheme.crimsonDarkAccent.withValues(alpha: 0.16)
+        : AppTheme.brand500.withValues(alpha: 0.10);
+    final roleText = user?.role == 'Resident' ? 'Resident' : 'Barangay Staff';
+
     return Drawer(
+      backgroundColor: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
       child: SafeArea(
-        child: ListView(
+        child: Column(
           children: [
+            // Header with Barangay logo, User's name (ellipsis), and real role badge
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               child: Row(
                 children: [
-                  const BrandLogo(size: 40),
+                  const BrandLogo(size: 44),
                   const SizedBox(width: 12),
-                  Text('BaraTrack',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Theme.of(context).colorScheme.primary)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          user?.name ?? 'BaraTrack User',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                          ),
+                          child: Text(
+                            roleText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            const Divider(),
-            for (var i = 0; i < destinations.length; i++)
-              ListTile(
-                leading: i == selectedIndex ? destinations[i].selectedIcon : destinations[i].icon,
-                title: destinations[i].label,
-                selected: i == selectedIndex,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _onItemTapped(i, context, isResident);
+            const Divider(height: 1),
+
+            // Scrollable Menu items (rounded pill 12px radius, min 44px height, 12px inset)
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: destinations.length,
+                itemBuilder: (context, i) {
+                  final isSelected = i == selectedIndex;
+                  final dest = destinations[i];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    child: Material(
+                      color: isSelected ? selectedBg : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _onItemTapped(i, context, isResident);
+                        },
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 44),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              IconTheme(
+                                data: IconThemeData(
+                                  color: isSelected ? accentRed : (isDark ? AppTheme.textHintDark : AppTheme.textHintLight),
+                                  size: 20,
+                                ),
+                                child: isSelected ? dest.selectedIcon : dest.icon,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: DefaultTextStyle(
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected
+                                        ? accentRed
+                                        : (isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                                  ),
+                                  child: dest.label,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
                 },
               ),
-            const Divider(),
+            ),
+
+            // Pinned Bottom Section separated by a divider
+            const Divider(height: 1),
             Consumer<OfflineQueueRepository>(
               builder: (context, queueRepo, _) {
                 final count = queueRepo.draftCount;
-                return ListTile(
-                  leading: const Icon(Icons.cloud_sync_outlined, color: Color(0xFFD61314)),
-                  title: Text(isResident ? 'Offline Drafts & History' : 'Pending Sync'),
-                  trailing: count > 0
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD61314),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$count',
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                        )
-                      : null,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    context.push('/offline-drafts');
-                  },
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        context.push('/offline-drafts');
+                      },
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.cloud_sync_outlined, color: accentRed, size: 20),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                isResident ? 'Offline Drafts & History' : 'Pending Sync',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                                ),
+                              ),
+                            ),
+                            if (count > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: accentRed,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sign out', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.of(context).pop();
-                _confirmLogout(context);
-              },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _confirmLogout(context);
+                  },
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Row(
+                      children: const [
+                        Icon(Icons.logout, color: AppTheme.error, size: 20),
+                        SizedBox(width: 14),
+                        Text(
+                          'Log out',
+                          style: TextStyle(
+                            color: AppTheme.error,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

@@ -85,15 +85,17 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
   Widget build(BuildContext context) {
     final complaintProvider = context.watch<ComplaintProvider>();
     final complaints = complaintProvider.myComplaints;
+    final sideMargin = AppTheme.sideMargin(context);
 
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.fromLTRB(sideMargin, 16, sideMargin, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('My Filed Complaints', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-          const Text('History of all blotter reports you have submitted.'),
-          const SizedBox(height: 32),
+          const Text('My Filed Complaints', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text('History of all blotter reports you have submitted.', style: TextStyle(color: AppTheme.textSecondaryLight)),
+          const SizedBox(height: 16),
           Expanded(
             child: complaintProvider.isLoading && complaints.isEmpty
                 ? const Center(child: CircularProgressIndicator())
@@ -102,6 +104,7 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                     : RefreshIndicator(
                         onRefresh: () => context.read<ComplaintProvider>().fetchMyComplaints(),
                         child: ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 24),
                           itemCount: complaints.length,
                           itemBuilder: (context, index) {
                             final c = complaints[index];
@@ -110,7 +113,7 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                             final canAttach = c.status != 'Settled' && c.status != 'Closed' && c.status != 'Dismissed';
 
                             return Card(
-                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              margin: const EdgeInsets.only(bottom: 12),
                               child: InkWell(
                                 onTap: () => ComplaintDetailsDialog.show(context, c),
                                 borderRadius: BorderRadius.circular(16),
@@ -119,33 +122,33 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Top Header: Identifier Pill & Status Badge
+                                      // Top Header: Identifier Pill (Expanded + ellipsis) & Status Badge
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Row(
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 16,
-                                                backgroundColor: context.brand.withValues(alpha: 0.12),
-                                                child: Icon(isCase ? Icons.folder : Icons.assignment, size: 16, color: context.brand),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                isCase ? 'Case #$displayId' : 'Complaint #$displayId',
-                                                style: TextStyle(
-                                                  fontFamily: 'monospace',
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 12,
-                                                  color: context.brand,
-                                                ),
-                                              ),
-                                            ],
+                                          CircleAvatar(
+                                            radius: 14,
+                                            backgroundColor: context.brand.withValues(alpha: 0.12),
+                                            child: Icon(isCase ? Icons.folder : Icons.assignment, size: 15, color: context.brand),
                                           ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              isCase ? 'Case #$displayId' : 'Complaint #$displayId',
+                                              style: TextStyle(
+                                                fontFamily: 'monospace',
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 12,
+                                                color: context.brand,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
                                           _buildStatusBadge(c.status),
                                         ],
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 10),
 
                                       // Full-Width Category Title (Never squeezed)
                                       Text(
@@ -158,25 +161,32 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                       ),
                                       const SizedBox(height: 8),
 
-                                      // Metadata details
-                                      Row(
+                                      // Metadata details wrapped safely
+                                      Wrap(
+                                        spacing: 12,
+                                        runSpacing: 6,
                                         children: [
-                                          const Icon(Icons.calendar_today, size: 13, color: AppTheme.textSecondary),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            'Filed on: ${DateFormat('MMM dd, yyyy').format(c.dateFiled)}',
-                                            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.calendar_today, size: 13, color: AppTheme.textSecondaryLight),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                'Filed: ${DateFormat('MMM dd, yyyy').format(c.dateFiled)}',
+                                                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryLight),
+                                              ),
+                                            ],
                                           ),
-                                          const SizedBox(width: 12),
-                                          const Icon(Icons.person_outline, size: 14, color: AppTheme.textSecondary),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              'Resp: ${c.respondent?.fullName ?? 'Unidentified'}',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                                            ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.person_outline, size: 14, color: AppTheme.textSecondaryLight),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Resp: ${c.respondent?.fullName ?? 'Unidentified'}',
+                                                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryLight),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -185,8 +195,11 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                         const SizedBox(height: 12),
                                         const Divider(height: 1),
                                         const SizedBox(height: 10),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        Wrap(
+                                          alignment: WrapAlignment.spaceBetween,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 8,
+                                          runSpacing: 8,
                                           children: [
                                             Text(
                                               'I-tap para sa buong detalye →',
@@ -208,7 +221,7 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                               label: const Text('Attach Evidence', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                               style: OutlinedButton.styleFrom(
                                                 minimumSize: const Size(44, 38),
-                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                               ),
                                             ),
@@ -230,21 +243,41 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color = Colors.grey;
-    if (status == 'Settled') color = Colors.green;
-    if (status == 'Under Investigation' || status == 'In Investigation') color = AppTheme.accentOrange;
-    if (status == 'Pending') color = Colors.blue;
+    Color color = AppTheme.textHintLight;
+    IconData icon = Icons.info_outline;
+
+    if (status == 'Settled' || status == 'Closed') {
+      color = AppTheme.success;
+      icon = Icons.check_circle_outline;
+    } else if (status == 'Under Investigation' || status == 'In Investigation' || status == 'Mediation') {
+      color = AppTheme.warning;
+      icon = Icons.pending_outlined;
+    } else if (status == 'Pending') {
+      color = AppTheme.brand500;
+      icon = Icons.hourglass_empty;
+    } else if (status == 'Dismissed') {
+      color = AppTheme.error;
+      icon = Icons.cancel_outlined;
+    }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      constraints: const BoxConstraints(minHeight: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
-      child: Text(
-        status,
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            status,
+            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
