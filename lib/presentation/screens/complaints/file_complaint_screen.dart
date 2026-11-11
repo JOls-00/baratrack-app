@@ -386,34 +386,47 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                   const SizedBox(height: 32),
                   _buildSectionHeader('Incident Information'),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedCategory,
-                          decoration: const InputDecoration(
-                            labelText: 'Incident Category',
-                            prefixIcon: Icon(Icons.category_outlined),
-                          ),
-                          items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                          onChanged: (v) => setState(() => _selectedCategory = v!),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 600;
+                      final categoryField = DropdownButtonFormField<String>(
+                        initialValue: _selectedCategory,
+                        decoration: const InputDecoration(
+                          labelText: 'Incident Category',
+                          prefixIcon: Icon(Icons.category_outlined),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _locationController,
-                          onChanged: (_) => _addressAutoFilled = false, // typed by the person: never overwrite it
-                          decoration: const InputDecoration(
-                            labelText: "Place of Incident",
-                            hintText: "Purok, Street, Landmark",
-                            helperText: 'Awtomatikong napupunan kapag naglagay ng pin. Puwede mong baguhin.',
-                            prefixIcon: Icon(Icons.location_on_outlined),
-                          ),
-                          validator: (v) => Validators.validateRequired(v, 'Incident Location'),
+                        items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                        onChanged: (v) => setState(() => _selectedCategory = v!),
+                      );
+                      final locationField = TextFormField(
+                        controller: _locationController,
+                        onChanged: (_) => _addressAutoFilled = false, // typed by the person: never overwrite it
+                        decoration: const InputDecoration(
+                          labelText: "Place of Incident",
+                          hintText: "Purok, Street, Landmark",
+                          helperText: 'Awtomatikong napupunan kapag naglagay ng pin.',
+                          prefixIcon: Icon(Icons.location_on_outlined),
                         ),
-                      ),
-                    ],
+                        validator: (v) => Validators.validateRequired(v, 'Incident Location'),
+                      );
+
+                      if (isNarrow) {
+                        return Column(
+                          children: [
+                            categoryField,
+                            const SizedBox(height: 14),
+                            locationField,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: categoryField),
+                          const SizedBox(width: 16),
+                          Expanded(child: locationField),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   Text('Pin the location (optional)', style: Theme.of(context).textTheme.titleSmall),

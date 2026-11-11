@@ -120,10 +120,15 @@ class _LocationPickerState extends State<LocationPicker> {
       children: [
         SegmentedButton<_LocMode>(
           showSelectedIcon: false,
+          style: ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 4)),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
           segments: const [
-            ButtonSegment(value: _LocMode.gps, icon: Icon(Icons.my_location, size: 18), label: Text('My location')),
-            ButtonSegment(value: _LocMode.pin, icon: Icon(Icons.push_pin_outlined, size: 18), label: Text('Pin on map')),
-            ButtonSegment(value: _LocMode.address, icon: Icon(Icons.edit_location_alt_outlined, size: 18), label: Text('Type address')),
+            ButtonSegment(value: _LocMode.gps, icon: Icon(Icons.my_location, size: 16), label: Text('GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+            ButtonSegment(value: _LocMode.pin, icon: Icon(Icons.push_pin_outlined, size: 16), label: Text('Pin Map', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+            ButtonSegment(value: _LocMode.address, icon: Icon(Icons.edit_location_alt_outlined, size: 16), label: Text('Address', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
           ],
           selected: {_mode},
           onSelectionChanged: (s) {
@@ -180,14 +185,29 @@ class _LocationPickerState extends State<LocationPicker> {
                   ),
                   Positioned(left: 10, top: 10, child: MapStyleToggle(value: _style, onChanged: (k) => setState(() => _style = k))),
                   Positioned(
-                    right: 10,
-                    top: 10,
-                    child: FilledButton.tonalIcon(
-                      onPressed: _locating ? null : _useGps,
-                      icon: _locating
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.my_location, size: 18),
-                      label: const Text('My location'),
+                    right: 12,
+                    bottom: 12,
+                    child: Material(
+                      elevation: 3,
+                      shape: const CircleBorder(),
+                      color: Theme.of(context).colorScheme.surface,
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: _locating ? null : _useGps,
+                        child: Tooltip(
+                          message: 'Gamitin ang kasalukuyang lokasyon',
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: _locating
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+                                  )
+                                : Icon(Icons.my_location, size: 20, color: primary),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
