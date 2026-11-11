@@ -5,23 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/version_provider.dart';
-import 'dashboard/dashboard_view.dart';
-import 'dashboard/user_dashboard_view.dart';
-import 'complaints/my_complaints_view.dart';
-import 'complaints/complaints_inbox_screen.dart';
-import 'hearings/my_hearings_view.dart';
-import 'documents/my_documents_view.dart';
-import 'notifications/notifications_view.dart';
-import 'announcements/announcements_view.dart';
-import 'profile/profile_editor_view.dart';
-import 'settings/settings_view.dart';
-import 'cases/case_list_screen.dart';
-import 'complaints/file_complaint_screen.dart';
-import 'residents/residents_list_screen.dart';
-import 'hearings/hearings_management_screen.dart';
-import 'reports/reports_screen.dart';
-import 'users/user_management_screen.dart';
 import '../../core/widgets/brand_logo.dart';
+import '../../data/repositories/offline_queue_repository.dart';
 
 class MainShell extends StatefulWidget {
   final Widget? child;
@@ -302,7 +287,7 @@ class _MainShellState extends State<MainShell> {
           ),
           const PopupMenuDivider(),
           PopupMenuItem<String>(child: const Text('My Profile'), onTap: () => context.go(profileRoute)),
-          PopupMenuItem<String>(child: const Text('Logout'), onTap: () => context.read<AuthProvider>().logout()),
+          PopupMenuItem<String>(child: const Text('Logout'), onTap: () => _confirmLogout(context)),
         ],
       );
     }
@@ -324,11 +309,60 @@ class _MainShellState extends State<MainShell> {
           icon: const Icon(Icons.keyboard_arrow_down, size: 20),
           itemBuilder: (context) => [
             PopupMenuItem(child: const Text('My Profile'), onTap: () => context.go(profileRoute)),
-            PopupMenuItem(child: const Text('Logout'), onTap: () => context.read<AuthProvider>().logout()),
+            PopupMenuItem(child: const Text('Logout'), onTap: () => _confirmLogout(context)),
           ],
         ),
       ],
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final queueRepo = context.read<OfflineQueueRepository>();
+    final unsentCount = queueRepo.draftCount;
+
+    if (unsentCount > 0) {
+      final shouldLogout = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+              const SizedBox(width: 8),
+              const Text('Unsent Drafts', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            'You have $unsentCount unsent draft${unsentCount > 1 ? 's' : ''}. Logging out will clear your offline cache.\n\nLog out anyway?',
+            style: const TextStyle(fontSize: 14, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Log out anyway'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldLogout != true) return;
+    }
+
+    if (context.mounted) {
+      // Clear offline cache and queued drafts on confirmed logout for privacy (Task 12)
+      await queueRepo.clearAll();
+      if (context.mounted) {
+        context.read<AuthProvider>().logout();
+      }
+    }
   }
 
   Widget _buildNotificationDrawer(BuildContext context, bool isResident) {
@@ -425,7 +459,7 @@ class _MainShellState extends State<MainShell> {
             const Divider(),
             for (var i = 0; i < destinations.length; i++)
               ListTile(
-                leading: i == selectedIndex ? (destinations[i].selectedIcon ?? destinations[i].icon) : destinations[i].icon,
+                leading: i == selectedIndex ? destinations[i].selectedIcon : destinations[i].icon,
                 title: destinations[i].label,
                 selected: i == selectedIndex,
                 onTap: () {
@@ -434,12 +468,39 @@ class _MainShellState extends State<MainShell> {
                 },
               ),
             const Divider(),
+            Consumer<OfflineQueueRepository>(
+              builder: (context, queueRepo, _) {
+                final count = queueRepo.draftCount;
+                return ListTile(
+                  leading: const Icon(Icons.cloud_sync_outlined, color: Color(0xFFD61314)),
+                  title: Text(isResident ? 'Offline Drafts & History' : 'Pending Sync'),
+                  trailing: count > 0
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD61314),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      : null,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    context.push('/offline-drafts');
+                  },
+                );
+              },
+            ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sign out', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.of(context).pop();
-                context.read<AuthProvider>().logout();
+                _confirmLogout(context);
               },
             ),
           ],
