@@ -50,49 +50,66 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ? const Center(child: Text('No report data available.'))
                   : RefreshIndicator(
                       onRefresh: () => reportsProvider.fetchReports(),
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSummaryGrid(data, theme),
-                            const SizedBox(height: 32),
-                            Row(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isMobile = constraints.maxWidth < 650;
+                          return SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(flex: 3, child: _buildCasesByStatus(data, theme)),
-                                const SizedBox(width: 24),
-                                Expanded(flex: 2, child: _buildHearingsSummary(data, theme)),
+                                _buildSummaryGrid(data, theme, isMobile),
+                                SizedBox(height: isMobile ? 16 : 32),
+                                if (isMobile) ...[
+                                  _buildCasesByStatus(data, theme),
+                                  const SizedBox(height: 16),
+                                  _buildHearingsSummary(data, theme),
+                                ] else ...[
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(flex: 3, child: _buildCasesByStatus(data, theme)),
+                                      const SizedBox(width: 24),
+                                      Expanded(flex: 2, child: _buildHearingsSummary(data, theme)),
+                                    ],
+                                  ),
+                                ],
+                                SizedBox(height: isMobile ? 16 : 32),
+                                _buildTrendChart(data, theme),
+                                SizedBox(height: isMobile ? 16 : 32),
+                                if (isMobile) ...[
+                                  _buildComplaintsByCategory(data, theme),
+                                  const SizedBox(height: 16),
+                                  _buildResidentsByZone(data, theme),
+                                ] else ...[
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(child: _buildComplaintsByCategory(data, theme)),
+                                      const SizedBox(width: 24),
+                                      Expanded(child: _buildResidentsByZone(data, theme)),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
-                            const SizedBox(height: 32),
-                            _buildTrendChart(data, theme),
-                            const SizedBox(height: 32),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: _buildComplaintsByCategory(data, theme)),
-                                const SizedBox(width: 24),
-                                Expanded(child: _buildResidentsByZone(data, theme)),
-                              ],
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
     );
   }
 
-  Widget _buildSummaryGrid(Map<String, dynamic> data, ThemeData theme) {
+  Widget _buildSummaryGrid(Map<String, dynamic> data, ThemeData theme, bool isMobile) {
     final totals = data['totals'] as Map<String, dynamic>? ?? {};
     return GridView.count(
-      crossAxisCount: 4,
+      crossAxisCount: isMobile ? 2 : 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 2,
+      crossAxisSpacing: isMobile ? 12 : 16,
+      mainAxisSpacing: isMobile ? 12 : 16,
+      childAspectRatio: isMobile ? 1.6 : 2,
       children: [
         _statCard(theme, 'Total Residents', '${totals['residents'] ?? 0}', Icons.people, Colors.teal),
         _statCard(theme, 'Total Cases', '${totals['cases'] ?? 0}', Icons.folder, Colors.blue),
