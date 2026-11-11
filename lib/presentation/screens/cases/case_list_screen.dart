@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/case_provider.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/empty_state_view.dart';
+import '../../../core/widgets/list_skeleton_placeholder.dart';
 
 class CaseListScreen extends StatefulWidget {
   final String? statusFilter;
@@ -45,12 +47,21 @@ class _CaseListScreenState extends State<CaseListScreen> {
           ),
         ),
       ),
-      body: caseProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
+      body: caseProvider.isLoading && caseProvider.cases.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: ListSkeletonPlaceholder(itemCount: 5),
+            )
           : RefreshIndicator(
               onRefresh: () => caseProvider.fetchCases(status: widget.statusFilter),
               child: caseProvider.cases.isEmpty
-                  ? const Center(child: Text('No cases found.'))
+                  ? EmptyStateView(
+                      icon: Icons.folder_open_rounded,
+                      title: 'Walang nahanap na mga kaso',
+                      message: widget.statusFilter != null
+                          ? 'Walang kaso sa ilalim ng katayuang "${widget.statusFilter}".'
+                          : 'Walang opisyal na blotter record na tumutugma sa iyong paghahanap.',
+                    )
                   : ListView.builder(
                       itemCount: caseProvider.cases.length,
                       itemBuilder: (context, index) {

@@ -5,7 +5,11 @@ import 'package:file_picker/file_picker.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/evidence_provider.dart';
 import '../../../config/app_theme.dart';
+import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/empty_state_view.dart';
+import '../../../core/widgets/list_skeleton_placeholder.dart';
 import 'complaint_details_dialog.dart';
+import 'file_complaint_screen.dart';
 
 class MyComplaintsView extends StatefulWidget {
   const MyComplaintsView({super.key});
@@ -98,9 +102,20 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
           const SizedBox(height: 16),
           Expanded(
             child: complaintProvider.isLoading && complaints.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const ListSkeletonPlaceholder(itemCount: 4)
                 : complaints.isEmpty
-                    ? const Center(child: Text('No complaints found.'))
+                    ? EmptyStateView(
+                        icon: Icons.assignment_late_outlined,
+                        title: 'Wala pang naihaing reklamo',
+                        message: 'Dito mo masusubaybayan ang kasaysayan at estado ng lahat ng iyong blotter at reklamo sa Barangay.',
+                        actionLabel: 'Maghain ng Reklamo',
+                        onAction: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const FileComplaintScreen()),
+                          );
+                        },
+                      )
                     : RefreshIndicator(
                         onRefresh: () => context.read<ComplaintProvider>().fetchMyComplaints(),
                         child: ListView.builder(
@@ -145,7 +160,7 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          _buildStatusBadge(c.status),
+                                          StatusBadge(status: c.status),
                                         ],
                                       ),
                                       const SizedBox(height: 10),
@@ -236,46 +251,6 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                           },
                         ),
                       ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color color = AppTheme.textHintLight;
-    IconData icon = Icons.info_outline;
-
-    if (status == 'Settled' || status == 'Closed') {
-      color = AppTheme.success;
-      icon = Icons.check_circle_outline;
-    } else if (status == 'Under Investigation' || status == 'In Investigation' || status == 'Mediation') {
-      color = AppTheme.warning;
-      icon = Icons.pending_outlined;
-    } else if (status == 'Pending') {
-      color = AppTheme.brand500;
-      icon = Icons.hourglass_empty;
-    } else if (status == 'Dismissed') {
-      color = AppTheme.error;
-      icon = Icons.cancel_outlined;
-    }
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: 28),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Text(
-            status,
-            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
           ),
         ],
       ),

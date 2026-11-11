@@ -6,9 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'location_picker.dart';
 import '../../../config/app_theme.dart';
-import '../../../core/network/connectivity_provider.dart';
-import '../../../core/router/app_router.dart';
-import '../../../core/utils/validators.dart';
 import '../../../data/models/offline_queue_item.dart';
 import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/complaint_provider.dart';
@@ -17,6 +14,7 @@ import '../../providers/resident_provider.dart';
 import '../../providers/evidence_provider.dart';
 import '../../../data/models/resident_model.dart';
 import '../profile/resident_registration_screen.dart';
+import 'complaint_submitted_screen.dart';
 
 class FileComplaintScreen extends StatefulWidget {
   final String? draftId;
@@ -38,11 +36,18 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   bool _respondentUnknown = false;
   List<PlatformFile> _selectedFiles = [];
 
-  // Controllers
+  // Controllers & Focus Nodes (Task 33: inline validation on blur and submit)
   final _locationController = TextEditingController();
+  final _narrativeController = TextEditingController();
+  final _locationFocus = FocusNode();
+  final _narrativeFocus = FocusNode();
+
+  String? _respondentError;
+  String? _narrativeError;
+  String? _locationError;
+
   LatLng? _incidentPoint;
   bool _addressAutoFilled = false;
-  final _narrativeController = TextEditingController();
 
   DateTime _incidentDate = DateTime.now();
   TimeOfDay _incidentTime = TimeOfDay.now();
@@ -64,9 +69,76 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   void initState() {
     super.initState();
     _currentDraftId = widget.draftId;
+    _narrativeFocus.addListener(_onNarrativeFocusChanged);
+    _locationFocus.addListener(_onLocationFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDraft();
     });
+  }
+
+  @override
+  void dispose() {
+    _narrativeFocus.removeListener(_onNarrativeFocusChanged);
+    _locationFocus.removeListener(_onLocationFocusChanged);
+    _narrativeFocus.dispose();
+    _locationFocus.dispose();
+    _locationController.dispose();
+    _narrativeController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onNarrativeFocusChanged() {
+    if (!_narrativeFocus.hasFocus) {
+      _validateNarrative();
+    }
+  }
+
+  void _onLocationFocusChanged() {
+    if (!_locationFocus.hasFocus) {
+      _validateLocation();
+    }
+  }
+
+  bool _validateNarrative() {
+    final text = _narrativeController.text.trim();
+    if (text.isEmpty) {
+      setState(() => _narrativeError = 'Kailangan ang salaysay: Ipaliwanag ang nangyaring insidente.');
+      return false;
+    } else if (text.length < 10) {
+      setState(() => _narrativeError = 'Masyadong maikli: Maglagay ng hindi bababa sa 10 letra para maunawaan ng Lupon (hal. "Nagkaroon ng pagtatalo sa bakod...").');
+      return false;
+    } else {
+      if (_narrativeError != null) setState(() => _narrativeError = null);
+      return true;
+    }
+  }
+
+  bool _validateLocation() {
+    final text = _locationController.text.trim();
+    if (text.isEmpty) {
+      setState(() => _locationError = 'Kailangan ang lokasyon: Maglagay ng kalye, purok, o palatandaan (hal. "Purok 3, tapat ng kapilya").');
+      return false;
+    } else {
+      if (_locationError != null) setState(() => _locationError = null);
+      return true;
+    }
+  }
+
+  bool _validateRespondent() {
+    final authProvider = context.read<AuthProvider>();
+    final residentId = authProvider.user?.residentId;
+
+    if (!_respondentUnknown && _selectedRespondent == null) {
+      setState(() => _respondentError = 'Pumili ng respondent mula sa listahan o lagyan ng tsek ang "Hindi kilala / Unknown".');
+      return false;
+    }
+    if (!_respondentUnknown && _selectedRespondent!.id == residentId) {
+      setState(() => _respondentError = 'Hindi mo maaaring ireklamo ang iyong sarili. Pumili ng ibang residente.');
+      return false;
+    }
+    if (_respondentError != null) setState(() => _respondentError = null);
+    return true;
   }
 
   Future<void> _loadDraft() async {
@@ -195,14 +267,6 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _locationController.dispose();
-    _narrativeController.dispose();
-    _pageController.dispose();
-    super.dispose();
-  }
-
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -274,34 +338,12 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   }
 
   bool _validateStep(int step) {
-    final authProvider = context.read<AuthProvider>();
-    final residentId = authProvider.user?.residentId;
-
     if (step == 0) {
-      // Step 1: Who
-      if (!_respondentUnknown && _selectedRespondent == null) {
-        _showError('Pumili ng inirereklamo (respondent) o lagyan ng tsek ang "Hindi kilala / Unknown".');
-        return false;
-      }
-      if (!_respondentUnknown && _selectedRespondent!.id == residentId) {
-        _showError('Hindi mo maaaring ireklamo ang iyong sarili.');
-        return false;
-      }
-      return true;
+      return _validateRespondent();
     } else if (step == 1) {
-      // Step 2: What happened
-      if (_narrativeController.text.trim().length < 10) {
-        _showError('Mangyaring maglagay ng malinaw na salaysay (hindi bababa sa 10 letra).');
-        return false;
-      }
-      return true;
+      return _validateNarrative();
     } else if (step == 2) {
-      // Step 3: Where
-      if (_locationController.text.trim().isEmpty) {
-        _showError('Mangyaring ilagay ang lugar o landmark kung saan naganap ang insidente.');
-        return false;
-      }
-      return true;
+      return _validateLocation();
     }
     return true;
   }
@@ -367,27 +409,21 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
       await _clearDraft();
 
       if (mounted) {
-        final messenger = ScaffoldMessenger.of(context);
-        Navigator.pop(context);
-
-        String message;
-        Color color = Colors.green;
-
-        if (filesToUpload.isEmpty) {
-          message = 'Complaint filed successfully!';
-        } else if (failedFiles.isEmpty) {
-          message = 'Complaint filed with $uploadedCount evidence file(s).';
-        } else {
-          message = 'Complaint filed, but these files could not be uploaded: ${failedFiles.join(', ')}. You can add them from My Complaints.';
-          color = Colors.orange[800]!;
-        }
-
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: color,
-            duration: const Duration(seconds: 6),
-            behavior: SnackBarBehavior.floating,
+        // Navigate to ComplaintSubmittedScreen (Task 32)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ComplaintSubmittedScreen(
+              complaintId: complaintId,
+              category: _selectedCategory,
+              respondentName: _respondentUnknown
+                  ? 'Hindi kilala / Unknown'
+                  : '${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName}',
+              location: _locationController.text.trim(),
+              incidentDate: DateFormat('MMM dd, yyyy').format(_incidentDate),
+              incidentTime: _incidentTime.format(context),
+              evidenceCount: uploadedCount,
+            ),
           ),
         );
       }
@@ -646,10 +682,38 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
             onChanged: (val) {
               setState(() {
                 _respondentUnknown = val ?? false;
-                if (_respondentUnknown) _selectedRespondent = null;
+                if (_respondentUnknown) {
+                  _selectedRespondent = null;
+                  _respondentError = null;
+                }
               });
             },
           ),
+
+          if (_respondentError != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.errorBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 16, color: AppTheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _respondentError!,
+                      style: const TextStyle(fontSize: 12, color: AppTheme.error, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           if (!_respondentUnknown) ...[
             const SizedBox(height: 12),
@@ -658,7 +722,10 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               optionsBuilder: (TextEditingValue textEditingValue) =>
                   _searchRespondents(textEditingValue.text, authUser?.residentId),
               onSelected: (ResidentModel selection) {
-                setState(() => _selectedRespondent = selection);
+                setState(() {
+                  _selectedRespondent = selection;
+                  _respondentError = null;
+                });
               },
               fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                 return TextField(
@@ -795,9 +862,16 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _narrativeController,
+            focusNode: _narrativeFocus,
             maxLines: 6,
+            onChanged: (_) {
+              if (_narrativeError != null) _validateNarrative();
+            },
             decoration: InputDecoration(
               hintText: 'Ipaliwanag nang detalyado kung ano ang nangyari, sino ang mga nakasaksi, at paano nagsimula ang insidente...',
+              helperText: 'Maglagay ng sapat na detalye (hindi bababa sa 10 letra).',
+              errorText: _narrativeError,
+              errorMaxLines: 3,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
@@ -828,8 +902,15 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _locationController,
+            focusNode: _locationFocus,
+            onChanged: (_) {
+              if (_locationError != null) _validateLocation();
+            },
             decoration: InputDecoration(
               hintText: 'e.g. Purok 4, tapat ng Rosario Elementary School',
+              helperText: 'Ilagay ang kalye, purok, o palatandaan.',
+              errorText: _locationError,
+              errorMaxLines: 2,
               prefixIcon: const Icon(Icons.location_on_outlined),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
