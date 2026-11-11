@@ -10,6 +10,7 @@ import '../../config/app_theme.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../../core/network/connectivity_provider.dart';
 import '../../data/repositories/offline_queue_repository.dart';
+import 'emergency/emergency_hotlines_modal.dart';
 
 class MainShell extends StatefulWidget {
   final Widget? child;
@@ -243,6 +244,7 @@ class _MainShellState extends State<MainShell> {
     final topInset = MediaQuery.of(context).padding.top; // status bar height (phones draw edge to edge)
     final compact = width < 600;
     final tiny = width < 400;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       height: 70 + topInset,
@@ -320,6 +322,43 @@ class _MainShellState extends State<MainShell> {
                 ),
               );
             },
+          ),
+          // Always-visible offline-ready Emergency Hotlines action (Task 28)
+          InkWell(
+            onTap: () => EmergencyHotlinesModal.show(context),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              margin: EdgeInsets.symmetric(horizontal: compact ? 2 : 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFFFF6B6E) : AppTheme.brand500).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: (isDark ? const Color(0xFFFF6B6E) : AppTheme.brand500).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.phone_in_talk_rounded,
+                    size: 14,
+                    color: isDark ? const Color(0xFFFF6B6E) : AppTheme.brand500,
+                  ),
+                  if (!compact) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      'Hotlines',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? const Color(0xFFFF6B6E) : AppTheme.brand500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
           Builder(builder: (context) {
             final unread = context.watch<NotificationProvider>().unreadCount;
@@ -654,6 +693,52 @@ class _MainShellState extends State<MainShell> {
 
             // Pinned Bottom Section separated by a divider
             const Divider(height: 1),
+            // Emergency Hotlines action (Task 28)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    EmergencyHotlinesModal.show(context);
+                  },
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.phone_in_talk_rounded, color: accentRed, size: 20),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            'Emergency Hotlines',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: accentRed.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '24/7',
+                            style: TextStyle(color: accentRed, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Consumer<OfflineQueueRepository>(
               builder: (context, queueRepo, _) {
                 final count = queueRepo.draftCount;

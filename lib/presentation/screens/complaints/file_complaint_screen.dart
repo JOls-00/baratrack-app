@@ -28,24 +28,26 @@ class FileComplaintScreen extends StatefulWidget {
 
 class _FileComplaintScreenState extends State<FileComplaintScreen> {
   final _formKey = GlobalKey<FormState>();
+  final PageController _pageController = PageController();
+  int _currentStep = 0; // 0: Who, 1: What, 2: Where, 3: Evidence, 4: Review
   bool _isSubmitting = false;
   String? _currentDraftId;
-  
+
   // Selection state
   ResidentModel? _selectedRespondent;
   bool _respondentUnknown = false;
   List<PlatformFile> _selectedFiles = [];
-  
+
   // Controllers
   final _locationController = TextEditingController();
-  LatLng? _incidentPoint; // optional map pin
-  bool _addressAutoFilled = false; // true while the field still holds the text we filled in
+  LatLng? _incidentPoint;
+  bool _addressAutoFilled = false;
   final _narrativeController = TextEditingController();
-  
+
   DateTime _incidentDate = DateTime.now();
   TimeOfDay _incidentTime = TimeOfDay.now();
   String _selectedCategory = 'Physical Injury';
-  
+
   final List<String> _categories = [
     'Physical Injury',
     'Theft/Robbery',
@@ -55,7 +57,6 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
     'Others',
   ];
 
-  // Bumped on every keystroke so only the latest respondent search is used.
   int _searchToken = 0;
   bool _hasDraftRestored = false;
 
@@ -98,55 +99,59 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
             final parsedDate = DateTime.tryParse(payload['incident_date'].toString());
             if (parsedDate != null) _incidentDate = parsedDate;
           }
+          if (payload['incident_time'] != null) {
+            final parts = payload['incident_time'].toString().split(':');
+            if (parts.length >= 2) {
+              _incidentTime = TimeOfDay(
+                hour: int.tryParse(parts[0]) ?? _incidentTime.hour,
+                minute: int.tryParse(parts[1]) ?? _incidentTime.minute,
+              );
+            }
+          }
           _respondentUnknown = payload['respondent_unknown'] == true;
           _hasDraftRestored = true;
         });
+
+        if (payload['respondent_id'] != null) {
+          try {
+            final resList = await context.read<ResidentProvider>().searchRespondents('');
+            final found = resList.where((r) => r.id == payload['respondent_id']).firstOrNull;
+            if (found != null && mounted) setState(() => _selectedRespondent = found);
+          } catch (_) {}
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FileComplaintScreen] loadDraft error: $e');
+    }
   }
 
   Future<void> _saveDraft({bool showNotice = true}) async {
     try {
       final queueRepo = context.read<OfflineQueueRepository>();
-      final user = context.read<AuthProvider>().user;
-
-      final copiedPaths = <String>[];
-      for (final f in _selectedFiles) {
-        if (f.path != null && f.path!.isNotEmpty) {
-          final copied = await queueRepo.copyEvidenceToAppDir(f.path!);
-          copiedPaths.add(copied);
-        }
-      }
-
-      final draftId = _currentDraftId ?? queueRepo.newUuid();
+      final authProvider = context.read<AuthProvider>();
       final payload = {
-        'title': 'Complaint: $_selectedCategory',
-        'category': _selectedCategory,
-        'incident_type': _selectedCategory,
         'narrative': _narrativeController.text.trim(),
         'location': _locationController.text.trim(),
-        'incident_date': _incidentDate.toIso8601String().split('T')[0],
+        'category': _selectedCategory,
+        'incident_date': DateFormat('yyyy-MM-dd').format(_incidentDate),
         'incident_time': '${_incidentTime.hour.toString().padLeft(2, '0')}:${_incidentTime.minute.toString().padLeft(2, '0')}:00',
-        'respondent_unknown': _respondentUnknown,
-        'respondent_name': _selectedRespondent?.fullName,
-        'respondent_id': _selectedRespondent?.id,
         'latitude': _incidentPoint?.latitude,
         'longitude': _incidentPoint?.longitude,
+        'respondent_id': _selectedRespondent?.id,
+        'respondent_unknown': _respondentUnknown,
       };
 
-      final draftItem = OfflineQueueItem(
-        id: draftId,
+      final item = OfflineQueueItem(
+        id: _currentDraftId ?? DateTime.now().millisecondsSinceEpoch.toString(),
         type: 'complaint',
+        ownerId: authProvider.user?.id,
+        ownerName: authProvider.user?.name,
         payload: payload,
-        evidencePaths: copiedPaths,
-        ownerId: user?.id,
-        ownerName: user?.name,
-        deviceTime: DateTime.now(),
         state: 'draft',
+        deviceTime: DateTime.now(),
       );
-
-      await queueRepo.save(draftItem);
-      _currentDraftId = draftId;
+      await queueRepo.save(item);
+      _currentDraftId = item.id;
 
       if (showNotice && mounted) {
         final hasNarrative = _narrativeController.text.trim().isNotEmpty;
@@ -173,11 +178,6 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         await context.read<OfflineQueueRepository>().delete(_currentDraftId!);
       }
       setState(() => _hasDraftRestored = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Offline draft cleared.')),
-        );
-      }
     } catch (_) {}
   }
 
@@ -185,7 +185,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
     final query = text.trim();
     if (query.length < 3) return const Iterable<ResidentModel>.empty();
     final token = ++_searchToken;
-    await Future.delayed(const Duration(milliseconds: 350)); // debounce
+    await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted || token != _searchToken) return const Iterable<ResidentModel>.empty();
     try {
       final results = await context.read<ResidentProvider>().searchRespondents(query);
@@ -199,6 +199,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   void dispose() {
     _locationController.dispose();
     _narrativeController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -262,495 +263,967 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
     }
   }
 
+  void _goToStep(int step) {
+    if (step < 0 || step > 4) return;
+    _pageController.animateToPage(
+      step,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+    setState(() => _currentStep = step);
+  }
+
+  bool _validateStep(int step) {
+    final authProvider = context.read<AuthProvider>();
+    final residentId = authProvider.user?.residentId;
+
+    if (step == 0) {
+      // Step 1: Who
+      if (!_respondentUnknown && _selectedRespondent == null) {
+        _showError('Pumili ng inirereklamo (respondent) o lagyan ng tsek ang "Hindi kilala / Unknown".');
+        return false;
+      }
+      if (!_respondentUnknown && _selectedRespondent!.id == residentId) {
+        _showError('Hindi mo maaaring ireklamo ang iyong sarili.');
+        return false;
+      }
+      return true;
+    } else if (step == 1) {
+      // Step 2: What happened
+      if (_narrativeController.text.trim().length < 10) {
+        _showError('Mangyaring maglagay ng malinaw na salaysay (hindi bababa sa 10 letra).');
+        return false;
+      }
+      return true;
+    } else if (step == 2) {
+      // Step 3: Where
+      if (_locationController.text.trim().isEmpty) {
+        _showError('Mangyaring ilagay ang lugar o landmark kung saan naganap ang insidente.');
+        return false;
+      }
+      return true;
+    }
+    return true;
+  }
+
+  void _nextStep() {
+    if (_validateStep(_currentStep)) {
+      _saveDraft(showNotice: false);
+      _goToStep(_currentStep + 1);
+    }
+  }
+
+  void _previousStep() {
+    _saveDraft(showNotice: false);
+    _goToStep(_currentStep - 1);
+  }
+
   Future<void> _submitForm() async {
     final authProvider = context.read<AuthProvider>();
     final residentId = authProvider.user?.residentId;
 
+    // Check resident verification only on Submit
     if (residentId == null) {
       _showRegistrationPrompt();
       return;
     }
 
-    if (_formKey.currentState!.validate()) {
-      if (!_respondentUnknown && _selectedRespondent == null) {
-        _showError('Please search and select a respondent or mark as unknown.');
-        return;
+    if (!_validateStep(0) || !_validateStep(1) || !_validateStep(2)) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    final filesToUpload = List<PlatformFile>.from(_selectedFiles);
+
+    try {
+      final complaintProvider = context.read<ComplaintProvider>();
+      final evidenceProvider = context.read<EvidenceProvider>();
+      final String formattedTime = '${_incidentTime.hour.toString().padLeft(2, '0')}:${_incidentTime.minute.toString().padLeft(2, '0')}:00';
+
+      final complaintId = await complaintProvider.submitComplaint(
+        complainantId: residentId,
+        respondentId: _respondentUnknown ? null : _selectedRespondent!.id,
+        category: _selectedCategory,
+        location: _locationController.text.trim(),
+        latitude: _incidentPoint?.latitude,
+        longitude: _incidentPoint?.longitude,
+        date: DateFormat('yyyy-MM-dd').format(_incidentDate),
+        time: formattedTime,
+        details: _narrativeController.text.trim(),
+      );
+
+      int uploadedCount = 0;
+      final failedFiles = <String>[];
+
+      for (final f in filesToUpload) {
+        try {
+          await evidenceProvider.uploadEvidence(complaintId: complaintId, file: f);
+          uploadedCount++;
+        } catch (_) {
+          failedFiles.add(f.name);
+        }
       }
 
-      if (!_respondentUnknown && _selectedRespondent!.id == residentId) {
-        _showError('You cannot file a complaint against yourself.');
-        return;
-      }
+      await _clearDraft();
 
-      setState(() => _isSubmitting = true);
-      final filesToUpload = List<PlatformFile>.from(_selectedFiles);
-      
-      try {
-        final complaintProvider = context.read<ComplaintProvider>();
-        final evidenceProvider = context.read<EvidenceProvider>();
-        final String formattedTime = '${_incidentTime.hour.toString().padLeft(2, '0')}:${_incidentTime.minute.toString().padLeft(2, '0')}:00';
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context);
 
-        final complaintId = await complaintProvider.submitComplaint(
-          complainantId: residentId,
-          respondentId: _respondentUnknown ? null : _selectedRespondent!.id,
-          category: _selectedCategory,
-          location: _locationController.text.trim(),
-          latitude: _incidentPoint?.latitude,
-          longitude: _incidentPoint?.longitude,
-          date: DateFormat('yyyy-MM-dd').format(_incidentDate),
-          time: formattedTime,
-          details: _narrativeController.text.trim(),
+        String message;
+        Color color = Colors.green;
+
+        if (filesToUpload.isEmpty) {
+          message = 'Complaint filed successfully!';
+        } else if (failedFiles.isEmpty) {
+          message = 'Complaint filed with $uploadedCount evidence file(s).';
+        } else {
+          message = 'Complaint filed, but these files could not be uploaded: ${failedFiles.join(', ')}. You can add them from My Complaints.';
+          color = Colors.orange[800]!;
+        }
+
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: color,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
-
-        int uploadedCount = 0;
-        final failedFiles = <String>[];
-
-        for (final f in filesToUpload) {
-          try {
-            await evidenceProvider.uploadEvidence(complaintId: complaintId, file: f);
-            uploadedCount++;
-          } catch (_) {
-            failedFiles.add(f.name);
-          }
-        }
-
-        await _clearDraft();
-
-        if (mounted) {
-          final messenger = ScaffoldMessenger.of(context);
-          Navigator.pop(context);
-          
-          String message;
-          Color color = Colors.green;
-
-          if (filesToUpload.isEmpty) {
-            message = 'Complaint filed successfully!';
-          } else if (failedFiles.isEmpty) {
-            message = 'Complaint filed with $uploadedCount evidence file(s).';
-          } else {
-            message = 'Complaint filed, but these files could not be uploaded: ${failedFiles.join(', ')}. You can add them from My Complaints.';
-            color = Colors.orange[800]!;
-          }
-
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: color,
-              duration: const Duration(seconds: 6),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      } catch (e) {
-        await _saveDraft(showNotice: false);
-        _showError(e is DioException ? 'Connection issue. Your complaint was safely saved as an offline draft!' : 'Error: ${e.toString()}');
-      } finally {
-        if (mounted) setState(() => _isSubmitting = false);
       }
+    } catch (e) {
+      await _saveDraft(showNotice: false);
+      _showError(e is DioException ? 'Connection issue. Your complaint was safely saved as an offline draft!' : 'Error: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-      );
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red[800],
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _showRegistrationPrompt() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Resident Profile Required'),
-        content: const Text('You need to complete your official resident profile before you can file a legal complaint.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ResidentRegistrationScreen()),
-              );
-            },
-            child: const Text('Complete Now'),
+      barrierDismissible: false,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.badge_outlined, color: AppTheme.brand500),
+              SizedBox(width: 8),
+              Expanded(child: Text('Resident Profile Required')),
+            ],
           ),
-        ],
-      ),
+          content: const Text(
+            'Bago maghain ng reklamo, kailangan mo munang i-setup ang iyong Resident Profile para sa beripikasyon ng Barangay Rosario.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Kanselahin'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ResidentRegistrationScreen()),
+                );
+              },
+              child: const Text('I-setup ang Profile'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final user = auth.user;
-    final connectivity = context.watch<ConnectivityProvider>();
-    final isOffline = !connectivity.isOnline || AppRouter.userChoseOffline;
-    final isOfflineResident = isOffline && (user?.role == 'Resident');
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final stepTitles = ['Who', 'What happened', 'Where', 'Evidence', 'Review'];
+    final stepSubtitles = [
+      'Sino ang sangkot sa insidente?',
+      'Ano ang nangyari at kailan?',
+      'Saan naganap ang insidente?',
+      'Mag-attach ng mga litrato o dokumento (Opsiyonal)',
+      'Suriin ang lahat ng detalye bago i-submit',
+    ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('File a New Complaint'),
-        backgroundColor: context.brand,
+        title: const Text('File Complaint'),
+        actions: [
+          TextButton.icon(
+            onPressed: () => _saveDraft(showNotice: true),
+            icon: const Icon(Icons.bookmark_outline, size: 18),
+            label: const Text('Save Draft'),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_hasDraftRestored)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit_note, color: Colors.amber.shade900, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Restored from offline draft',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _clearDraft,
-                            child: const Text('Discard Draft', style: TextStyle(fontSize: 11, color: Colors.red)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  _buildSectionHeader('1. Sino ang Kasangkot (Respondent)'),
-                  const SizedBox(height: 10),
-                  CheckboxListTile(
-                    title: const Text('Respondent unknown or not identified', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    subtitle: const Text('Lagyan ng tsek kung hindi pa kilala ang inirereklamo.', style: TextStyle(fontSize: 12)),
-                    value: _respondentUnknown,
-                    onChanged: (val) {
-                      setState(() {
-                        _respondentUnknown = val ?? false;
-                        if (_respondentUnknown) _selectedRespondent = null;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  if (!_respondentUnknown) ...[
-                    const SizedBox(height: 10),
-                    _buildRespondentPicker(user?.residentId),
-                  ],
-                  const SizedBox(height: 28),
-                  _buildSectionHeader('2. Saan at Kailan (Incident Info)'),
-                  const SizedBox(height: 12),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 600;
-                      final categoryField = DropdownButtonFormField<String>(
-                        initialValue: _selectedCategory,
-                        decoration: const InputDecoration(
-                          labelText: 'Uri ng Reklamo / Category',
-                          prefixIcon: Icon(Icons.category_outlined),
-                        ),
-                        items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                        onChanged: (v) => setState(() => _selectedCategory = v!),
-                      );
-                      final locationField = TextFormField(
-                        controller: _locationController,
-                        onChanged: (_) => _addressAutoFilled = false, // typed by the person: never overwrite it
-                        decoration: const InputDecoration(
-                          labelText: "Lugar ng Insidente (Location)",
-                          hintText: "Purok, Street, Landmark",
-                          helperText: 'Awtomatikong napupunan kapag naglagay ng pin.',
-                          prefixIcon: Icon(Icons.location_on_outlined),
-                        ),
-                        validator: (v) => Validators.validateRequired(v, 'Incident Location'),
-                      );
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Linear Progress Indicator
+            LinearProgressIndicator(
+              value: (_currentStep + 1) / 5.0,
+              backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500,
+              ),
+              minHeight: 4,
+            ),
 
-                      if (isNarrow) {
-                        return Column(
-                          children: [
-                            categoryField,
-                            const SizedBox(height: 12),
-                            locationField,
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(child: categoryField),
-                          const SizedBox(width: 14),
-                          Expanded(child: locationField),
-                        ],
-                      );
-                    },
+            // Step Header Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: (isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500).withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${_currentStep + 1}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Text('Pin the location (opsyonal)', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Hindi laging ang kinalalagyan mo ang pinangyarihan. I-tap ang mapa para ilipat ang pin. Hindi mo kailangang ibahagi ang location mo para mag-file.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 8),
-                  LocationPicker(
-                    value: _incidentPoint,
-                    hidePinMap: isOffline,
-                    onChanged: (p) => setState(() => _incidentPoint = p),
-                    onAddress: (a) {
-                      // Fill the field only if it is empty or still holds our own earlier suggestion.
-                      if (_locationController.text.trim().isEmpty || _addressAutoFilled) {
-                        setState(() {
-                          _locationController.text = a;
-                          _addressAutoFilled = true;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: _selectDate,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFFCBD5E1)),
-                              borderRadius: BorderRadius.circular(12),
-                              color: Theme.of(context).cardTheme.color ?? Colors.white,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.calendar_today, size: 18, color: context.brand),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('Petsa / Date', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        DateFormat('MMM dd, yyyy').format(_incidentDate),
-                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Step ${_currentStep + 1} of 5: ${stepTitles[_currentStep]}',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: _selectTime,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFFCBD5E1)),
-                              borderRadius: BorderRadius.circular(12),
-                              color: Theme.of(context).cardTheme.color ?? Colors.white,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.access_time, size: 18, color: context.brand),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('Oras / Time', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        _incidentTime.format(context),
-                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          stepSubtitles[_currentStep],
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  _buildSectionHeader('3. Ano ang Nangyari (Incident Narrative)'),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _narrativeController,
-                    maxLines: 6,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    decoration: const InputDecoration(
-                      labelText: "Detalyadong Salaysay (Description)",
-                      hintText: "Ipaliwanag nang malinaw ang buong pangyayari...",
-                      alignLabelWithHint: true,
-                    ),
-                    validator: (v) => Validators.validateRequired(v, 'Narrative'),
-                  ),
-                  const SizedBox(height: 28),
-                  _buildSectionHeader('4. Katibayan (Evidence Attachments)'),
-                  const SizedBox(height: 12),
-                  _buildEvidenceSection(),
-                  const SizedBox(height: 48),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: (_isSubmitting || isOfflineResident) ? null : _submitForm,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: context.brand,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: _isSubmitting 
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              isOfflineResident
-                                  ? "Submit when you're back online"
-                                  : 'Submit Complaint',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: _isSubmitting ? null : () => _saveDraft(showNotice: true),
-                      icon: const Icon(Icons.save_outlined, size: 18),
-                      label: const Text('Save as Offline Draft', style: TextStyle(fontWeight: FontWeight.w600)),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                 ],
               ),
             ),
-          ),
+            const Divider(height: 1),
+
+            // Page View with the 5 Steps
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildStepWho(context, isDark),
+                    _buildStepWhat(context, isDark),
+                    _buildStepWhere(context, isDark),
+                    _buildStepEvidence(context, isDark),
+                    _buildStepReview(context, isDark),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Navigation Action Bar
+            _buildBottomNav(context, isDark),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildRespondentPicker(int? currentResidentId) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Autocomplete<ResidentModel>(
-          displayStringForOption: (option) => option.fullName,
-          optionsBuilder: (TextEditingValue textEditingValue) =>
-              _searchRespondents(textEditingValue.text, currentResidentId),
-          onSelected: (ResidentModel selection) => setState(() => _selectedRespondent = selection),
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-            return TextFormField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: const InputDecoration(
-                labelText: 'Search Resident (Respondent)',
-                hintText: 'Type at least 3 letters of the respondent\'s name...',
-                prefixIcon: Icon(Icons.search),
-              ),
-              validator: (v) => (!_respondentUnknown && _selectedRespondent == null) ? 'Selection required' : null,
-            );
-          },
-        ),
-        if (_selectedRespondent != null) ...[
-          const SizedBox(height: 16),
+  // ---------------------------------------------------------------------------
+  // STEP 1: WHO (SINO)
+  // ---------------------------------------------------------------------------
+  Widget _buildStepWho(BuildContext context, bool isDark) {
+    final authUser = context.watch<AuthProvider>().user;
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Complainant Card
+          Text(
+            'NAGREREKLAMO (COMPLAINANT)',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: context.brand.withValues(alpha: 0.05),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.brand.withValues(alpha: 0.2)),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 24),
+                CircleAvatar(
+                  backgroundColor: AppTheme.brand500.withValues(alpha: 0.12),
+                  child: const Icon(Icons.person, color: AppTheme.brand500),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Selected Respondent:', style: TextStyle(fontSize: 12, color: Colors.blueGrey[600])),
-                      Text(_selectedRespondent!.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('Zone ${_selectedRespondent!.zone ?? 'N/A'}', style: const TextStyle(fontSize: 13)),
+                      Text(
+                        authUser?.name ?? 'Ikaw (You)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        authUser?.residentId != null
+                            ? 'Verified Resident (ID: #${authUser!.residentId})'
+                            : 'Resident profile pending verification',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: authUser?.residentId != null ? Colors.green : Colors.orange.shade800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => setState(() => _selectedRespondent = null),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Respondent Section
+          Text(
+            'INIREREKLAMO (RESPONDENT)',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          CheckboxListTile(
+            value: _respondentUnknown,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: const Text('Hindi kilala o hindi residente (Unknown / Unidentified)'),
+            subtitle: const Text('Lagyan ng tsek kung hindi mo alam ang buong pangalan ng inirereklamo'),
+            onChanged: (val) {
+              setState(() {
+                _respondentUnknown = val ?? false;
+                if (_respondentUnknown) _selectedRespondent = null;
+              });
+            },
+          ),
+
+          if (!_respondentUnknown) ...[
+            const SizedBox(height: 12),
+            Autocomplete<ResidentModel>(
+              displayStringForOption: (ResidentModel r) => '${r.firstName} ${r.lastName} (${r.zone ?? r.address ?? "Rosario"})',
+              optionsBuilder: (TextEditingValue textEditingValue) =>
+                  _searchRespondents(textEditingValue.text, authUser?.residentId),
+              onSelected: (ResidentModel selection) {
+                setState(() => _selectedRespondent = selection);
+              },
+              fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: InputDecoration(
+                    labelText: 'Hanapin ang Inirereklamo',
+                    hintText: 'I-type ang pangalan (min 3 letra)...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              },
+            ),
+
+            if (_selectedRespondent != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Napili: ${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName} (${_selectedRespondent!.zone ?? _selectedRespondent!.address ?? "Rosario"})',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      tooltip: 'Alisin',
+                      onPressed: () => setState(() => _selectedRespondent = null),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // STEP 2: WHAT HAPPENED (ANO ANG NANGYARI)
+  // ---------------------------------------------------------------------------
+  Widget _buildStepWhat(BuildContext context, bool isDark) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Category
+          Text(
+            'KATEGORYA NG REKLAMO',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _selectedCategory,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon: const Icon(Icons.category_outlined),
+            ),
+            items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            onChanged: (val) {
+              if (val != null) setState(() => _selectedCategory = val);
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          // Date and Time
+          Text(
+            'PETSA AT ORAS NG INSIDENTE',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                  label: Text(DateFormat('MMM dd, yyyy').format(_incidentDate)),
+                  onPressed: _selectDate,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.access_time, size: 18),
+                  label: Text(_incidentTime.format(context)),
+                  onPressed: _selectTime,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Narrative
+          Text(
+            'SALAYSAY NG NANGYARI (NARRATIVE)',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _narrativeController,
+            maxLines: 6,
+            decoration: InputDecoration(
+              hintText: 'Ipaliwanag nang detalyado kung ano ang nangyari, sino ang mga nakasaksi, at paano nagsimula ang insidente...',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // STEP 3: WHERE (SAAN)
+  // ---------------------------------------------------------------------------
+  Widget _buildStepWhere(BuildContext context, bool isDark) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LUGAR O LANDMARK',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _locationController,
+            decoration: InputDecoration(
+              hintText: 'e.g. Purok 4, tapat ng Rosario Elementary School',
+              prefixIcon: const Icon(Icons.location_on_outlined),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          Text(
+            'PIN THE LOCATION ON MAP (OPSIYONAL)',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'I-tap ang mapa para ilipat ang pin. Awtomatikong mapupunan ang address.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          LocationPicker(
+            value: _incidentPoint,
+            onChanged: (p) => setState(() => _incidentPoint = p),
+            onAddress: (a) {
+              if (_locationController.text.trim().isEmpty || _addressAutoFilled) {
+                setState(() {
+                  _locationController.text = a;
+                  _addressAutoFilled = true;
+                });
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // STEP 4: EVIDENCE (EBIDENSYA)
+  // ---------------------------------------------------------------------------
+  Widget _buildStepEvidence(BuildContext context, bool isDark) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'MGA DOKUMENTO AT LARAWAN (OPSIYONAL)',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Maaaring mag-attach ng hanggang 15 files (JPG, PNG, PDF, MP4, DOC).',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.attach_file),
+            label: Text(_selectedFiles.isEmpty ? 'Pumili ng Files' : 'Magdagdag ng Files (${_selectedFiles.length}/15)'),
+            onPressed: _pickFiles,
+          ),
+
+          const SizedBox(height: 16),
+
+          if (_selectedFiles.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.folder_open_outlined,
+                      size: 48,
+                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Walang kalakip na ebidensya.\nMaaaring magpatuloy nang walang files.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _selectedFiles.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final file = _selectedFiles[index];
+                final sizeKb = (file.size / 1024).toStringAsFixed(1);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.insert_drive_file_outlined, color: AppTheme.brand500, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            Text('$sizeKb KB', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            _selectedFiles.removeAt(index);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // STEP 5: REVIEW (PAGSUSURI BAGO I-SUBMIT)
+  // ---------------------------------------------------------------------------
+  Widget _buildStepReview(BuildContext context, bool isDark) {
+    final theme = Theme.of(context);
+    final respondentDisplay = _respondentUnknown
+        ? 'Hindi kilala / Unknown'
+        : (_selectedRespondent != null
+            ? '${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName}'
+            : 'Hindi napili');
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'BUOD NG REKLAMO',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildReviewCard(
+            context,
+            isDark,
+            title: 'Sino ang Sangkot',
+            stepIndex: 0,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildReviewRow('Inirereklamo:', respondentDisplay),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildReviewCard(
+            context,
+            isDark,
+            title: 'Detalye ng Insidente',
+            stepIndex: 1,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildReviewRow('Kategorya:', _selectedCategory),
+                const SizedBox(height: 4),
+                _buildReviewRow('Petsa at Oras:', '${DateFormat('MMM dd, yyyy').format(_incidentDate)} sa ganap na ${_incidentTime.format(context)}'),
+                const SizedBox(height: 6),
+                Text(
+                  'Salaysay:',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _narrativeController.text.trim().isEmpty ? 'Walang salaysay' : _narrativeController.text.trim(),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildReviewCard(
+            context,
+            isDark,
+            title: 'Lugar ng Insidente',
+            stepIndex: 2,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildReviewRow('Lugar / Landmark:', _locationController.text.trim()),
+                if (_incidentPoint != null) ...[
+                  const SizedBox(height: 4),
+                  _buildReviewRow('Map Pin:', '${_incidentPoint!.latitude.toStringAsFixed(4)}, ${_incidentPoint!.longitude.toStringAsFixed(4)}'),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildReviewCard(
+            context,
+            isDark,
+            title: 'Ebidensya',
+            stepIndex: 3,
+            content: Text(
+              _selectedFiles.isEmpty ? 'Walang kalakip na files' : '${_selectedFiles.length} file(s) kalakip',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.brand500.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.brand500.withValues(alpha: 0.2)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, color: AppTheme.brand500, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Kapag na-submit, opisyal itong itatala sa Barangay Rosario Blotter at bibigyan ng Tracking Number.',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 
-  Widget _buildEvidenceSection() {
+  Widget _buildReviewCard(
+    BuildContext context,
+    bool isDark, {
+    required String title,
+    required int stepIndex,
+    required Widget content,
+  }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.bgSoftGray,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_selectedFiles.isEmpty) ...[
-            const Icon(Icons.cloud_upload_outlined, size: 48, color: AppTheme.textSecondary),
-            const SizedBox(height: 16),
-            const Text('No files selected', style: TextStyle(fontWeight: FontWeight.bold)),
-            const Text('Attach photos, documents or videos (JPG, PNG, PDF, MP4, DOC, DOCX, up to 15 MB each, max 15 files).', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-          ] else ...[
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _selectedFiles.length,
-              itemBuilder: (context, i) => ListTile(
-                leading: Icon(Icons.insert_drive_file, color: context.brand),
-                title: Text(_selectedFiles[i].name, style: const TextStyle(fontSize: 13)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  onPressed: () => setState(() => _selectedFiles.removeAt(i)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              InkWell(
+                onTap: () => _goToStep(stepIndex),
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined, size: 14, color: AppTheme.brand500),
+                      SizedBox(width: 4),
+                      Text('I-edit', style: TextStyle(fontSize: 12, color: AppTheme.brand500, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: _pickFiles,
-            icon: const Icon(Icons.attach_file),
-            label: Text(_selectedFiles.isEmpty ? 'Choose Files' : 'Add More Files'),
+            ],
           ),
+          const Divider(height: 16),
+          content,
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) => Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.darkNavy));
+  Widget _buildReviewRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // BOTTOM NAV (BACK & NEXT / SUBMIT BUTTONS)
+  // ---------------------------------------------------------------------------
+  Widget _buildBottomNav(BuildContext context, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+      ),
+      child: Row(
+        children: [
+          if (_currentStep > 0) ...[
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(100, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.arrow_back, size: 16),
+              label: const Text('Bumalik'),
+              onPressed: _isSubmitting ? null : _previousStep,
+            ),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: _currentStep < 4
+                ? ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.brand500,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Text('Susunod', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    label: const Icon(Icons.arrow_forward, size: 16),
+                    onPressed: _nextStep,
+                  )
+                : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.brand500,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _isSubmitting ? null : _submitForm,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'I-SUBMIT ANG REKLAMO',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5),
+                          ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
 }

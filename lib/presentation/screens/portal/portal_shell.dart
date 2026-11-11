@@ -11,6 +11,7 @@ import '../../providers/portal_provider.dart';
 import 'landing_sections.dart';
 import 'portal_chat_sheet.dart';
 import 'portal_greeting.dart';
+import '../emergency/emergency_hotlines_modal.dart';
 
 /// Frame shared by every public page: centred logo header, colour stripe, navigation, footer and the chat button.
 /// [current] highlights the active link: home | about | officials | announcements | album | track | faqs | contact.
@@ -198,6 +199,20 @@ class _NavBar extends StatelessWidget {
           link('Track a Complaint', 'track', '/track'),
           link('FAQs', 'faqs', '/faqs'),
           link('Contact', 'contact', '/contact'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: OutlinedButton.icon(
+              onPressed: () => EmergencyHotlinesModal.show(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.brand500,
+                side: const BorderSide(color: AppTheme.brand500),
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              icon: const Icon(Icons.phone_in_talk, size: 14),
+              label: const Text('Hotlines (24/7)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ),
           const SizedBox(width: 6),
           ElevatedButton(
             onPressed: () => context.go('/login'),

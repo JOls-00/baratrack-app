@@ -209,7 +209,9 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          _buildStatusTimeline(theme),
+          const SizedBox(height: 24),
           _buildStatusPicker(theme),
           const SizedBox(height: 32),
           _buildDetailSection(theme, complaint),
@@ -232,6 +234,198 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
         const SizedBox(height: 8),
         Text('Opened on: ${DateFormat('MMMM dd, yyyy').format(_caseDetails!.updatedAt)}', style: TextStyle(color: theme.hintColor)),
       ],
+    );
+  }
+
+  Widget _buildStatusTimeline(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    final status = _caseDetails?.status ?? 'Pending';
+
+    // 0: Filed, 1: Under Review (Pending), 2: Mediation (Under Investigation), 3: Settled/Closed
+    int currentStep = 1;
+    if (status == 'Pending') {
+      currentStep = 1;
+    } else if (status == 'Under Investigation' || status == 'Hearing Scheduled') {
+      currentStep = 2;
+    } else if (status == 'Settled' || status == 'Closed') {
+      currentStep = 3;
+    }
+
+    String nextExplanation;
+    switch (currentStep) {
+      case 1:
+        nextExplanation = 'Susunod: Isasagawa ng Lupon ang paunang pagsusuri ng reklamo at magpapadala ng opisyal na paanyaya/summon para sa mediation.';
+        break;
+      case 2:
+        nextExplanation = 'Susunod: Pagtatagpo ng nagrereklamo at inirereklamo sa Barangay Hall kasama ang Lupon para sa mapayapang pag-aayos (Katarungang Pambarangay).';
+        break;
+      case 3:
+        if (status == 'Closed') {
+          nextExplanation = 'Naisara na ang kasong ito. Maaaring kumuha ng Certificate to File Action kung kinakailangang idulog sa hukuman.';
+        } else {
+          nextExplanation = 'Matagumpay nang naayos ang sigalot at nilagdaan na ang Kasunduan sa Pag-aayos (Amicable Settlement).';
+        }
+        break;
+      default:
+        nextExplanation = 'Kasalukuyang pinoproseso sa Barangay Registry.';
+    }
+
+    final steps = [
+      ('Naihain', 'Filed', Icons.assignment_turned_in_outlined),
+      ('Sinusuri', 'Under Review', Icons.search_outlined),
+      ('Paghaharap', 'Mediation', Icons.gavel_outlined),
+      ('Naayos', 'Settled', Icons.verified_outlined),
+    ];
+
+    final activeColor = isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.timeline_rounded, color: activeColor, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Case Status Tracker',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const Spacer(),
+              StatusBadge(status: status),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Timeline Step Nodes
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < steps.length; i++) ...[
+                Expanded(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 3,
+                              color: i == 0
+                                  ? Colors.transparent
+                                  : (i <= currentStep
+                                      ? activeColor
+                                      : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                            ),
+                          ),
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: i <= currentStep
+                                  ? activeColor
+                                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                              border: Border.all(
+                                color: i <= currentStep
+                                    ? activeColor
+                                    : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              i < currentStep
+                                  ? Icons.check
+                                  : (i == currentStep ? steps[i].$3 : Icons.circle),
+                              size: i < currentStep ? 16 : 14,
+                              color: i <= currentStep
+                                  ? Colors.white
+                                  : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                            ),
+                          ),
+                          Expanded(
+                            child: Container(
+                              height: 3,
+                              color: i == steps.length - 1
+                                  ? Colors.transparent
+                                  : (i < currentStep
+                                      ? activeColor
+                                      : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        steps[i].$1,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: i == currentStep ? FontWeight.w800 : FontWeight.w600,
+                          color: i == currentStep
+                              ? activeColor
+                              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // "What happens next" box
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: activeColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: activeColor.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, size: 18, color: activeColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ano ang susunod (What happens next):',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: activeColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        nextExplanation,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
