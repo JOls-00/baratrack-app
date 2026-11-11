@@ -36,7 +36,9 @@ class AppRouter {
   // Stable notifier for router refreshes
   static final authNotifier = ValueNotifier<AuthStatus>(AuthStatus.unauthenticated);
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-  static bool userChoseOffline = false;
+  static final ValueNotifier<bool> offlineNotifier = ValueNotifier<bool>(false);
+  static bool get userChoseOffline => offlineNotifier.value;
+  static set userChoseOffline(bool value) => offlineNotifier.value = value;
   static bool _isShowingOfflineDialog = false;
 
   static void promptOfflineMode() {

@@ -32,6 +32,8 @@ import 'presentation/providers/portal_provider.dart';
 import 'presentation/providers/branding_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/widgets/session_reset_binder.dart';
+import 'core/network/connectivity_provider.dart';
+import 'core/widgets/reconnect_banner.dart';
 
 import 'data/repositories/version_repository.dart';
 import 'presentation/providers/version_provider.dart';
@@ -142,6 +144,9 @@ void main() {
         ChangeNotifierProvider(
           create: (context) => VersionProvider(context.read<VersionRepository>()),
         ),
+        ChangeNotifierProvider(
+          create: (_) => ConnectivityProvider(),
+        ),
       ],
       child: const BarangayApp(),
     ),
@@ -170,12 +175,24 @@ class BarangayApp extends StatelessWidget {
       themeMode: activeMode,
       routerConfig: AppRouter.router,
       builder: (context, child) {
+        final connectivity = context.watch<ConnectivityProvider>();
         return SessionResetBinder(
           child: AnimatedTheme(
             data: AppTheme.getTheme(activeCombo, primaryOverride: brandPrimary),
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            child: child!,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: AppRouter.offlineNotifier,
+              builder: (context, userChoseOffline, _) {
+                final showBanner = userChoseOffline && connectivity.isOnline;
+                return Column(
+                  children: [
+                    if (showBanner) const ReconnectBanner(),
+                    Expanded(child: child!),
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
