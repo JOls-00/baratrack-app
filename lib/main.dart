@@ -34,6 +34,7 @@ import 'core/router/app_router.dart';
 import 'core/widgets/session_reset_binder.dart';
 import 'core/network/connectivity_provider.dart';
 import 'core/widgets/reconnect_banner.dart';
+import 'data/repositories/offline_queue_repository.dart';
 
 import 'data/repositories/version_repository.dart';
 import 'presentation/providers/version_provider.dart';
@@ -147,6 +148,9 @@ void main() {
         ChangeNotifierProvider(
           create: (_) => ConnectivityProvider(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => OfflineQueueRepository()..initialize(),
+        ),
       ],
       child: const BarangayApp(),
     ),
@@ -176,6 +180,7 @@ class BarangayApp extends StatelessWidget {
       routerConfig: AppRouter.router,
       builder: (context, child) {
         final connectivity = context.watch<ConnectivityProvider>();
+        final queueRepo = context.watch<OfflineQueueRepository>();
         return SessionResetBinder(
           child: AnimatedTheme(
             data: AppTheme.getTheme(activeCombo, primaryOverride: brandPrimary),
@@ -187,7 +192,7 @@ class BarangayApp extends StatelessWidget {
                 final showBanner = userChoseOffline && connectivity.isOnline;
                 return Column(
                   children: [
-                    if (showBanner) const ReconnectBanner(),
+                    if (showBanner) ReconnectBanner(draftCount: queueRepo.draftCount),
                     Expanded(child: child!),
                   ],
                 );
