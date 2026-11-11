@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -158,11 +159,25 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       appBar: AppBar(
         title: Text(_caseDetails?.caseNumber ?? 'Case Details'),
         actions: [
-          if (_caseDetails != null)
+          if (_caseDetails != null) ...[
+            IconButton(
+              icon: const Icon(Icons.copy, size: 20),
+              tooltip: 'Kopyahin ang Case Number',
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: _caseDetails!.caseNumber));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Kopyado na sa clipboard ang Case Number!'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
               child: StatusBadge(status: _caseDetails!.status),
             ),
+          ],
         ],
       ),
       body: _isLoading

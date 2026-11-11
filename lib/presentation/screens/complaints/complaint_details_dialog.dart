@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -84,8 +85,28 @@ class _ComplaintDetailsDialogState extends State<ComplaintDetailsDialog> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(isCase ? 'Official Case #$displayId' : 'Pending Complaint #$displayId', 
-                    style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      Text(isCase ? 'Official Case #$displayId' : 'Pending Complaint #$displayId', 
+                        style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 6),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: displayId));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Kopyado na sa clipboard ang Tracking ID!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(2.0),
+                          child: Icon(Icons.copy, size: 14, color: AppTheme.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
                   Text(complaint.typeName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: context.brand)),
                 ],
               ),

@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/version_provider.dart';
 import '../../core/widgets/brand_logo.dart';
+import '../../core/network/connectivity_provider.dart';
 import '../../data/repositories/offline_queue_repository.dart';
 
 class MainShell extends StatefulWidget {
@@ -231,6 +232,44 @@ class _MainShellState extends State<MainShell> {
                         )),
               ],
             ),
+          ),
+          Consumer<ConnectivityProvider>(
+            builder: (context, conn, _) {
+              final isOnline = conn.isOnline;
+              return Container(
+                margin: EdgeInsets.symmetric(horizontal: compact ? 4 : 8),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isOnline ? const Color(0x1F10B981) : Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isOnline ? const Color(0x4D10B981) : Colors.amber.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: isOnline ? const Color(0xFF10B981) : Colors.amber.shade800,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isOnline ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isOnline ? const Color(0xFF047857) : Colors.amber.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           Builder(builder: (context) {
             final unread = context.watch<NotificationProvider>().unreadCount;
