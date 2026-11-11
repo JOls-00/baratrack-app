@@ -10,6 +10,7 @@ class UserModel {
   final String? contactNumber;
   final String? address;
   final String? profilePicture;
+  String? get avatarUrl => profilePicture;
   final DateTime? birthDate;
 
   UserModel({

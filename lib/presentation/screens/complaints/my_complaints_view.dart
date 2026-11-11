@@ -110,67 +110,114 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                             final canAttach = c.status != 'Settled' && c.status != 'Closed' && c.status != 'Dismissed';
 
                             return Card(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              child: Column(
-                                children: [
-                                  InkWell(
-                                    onTap: () {
-                                      ComplaintDetailsDialog.show(context, c);
-                                    },
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Row(
+                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              child: InkWell(
+                                onTap: () => ComplaintDetailsDialog.show(context, c),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Top Header: Identifier Pill & Status Badge
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          CircleAvatar(
-                                            backgroundColor: context.brand.withValues(alpha: 0.1),
-                                            child: Icon(isCase ? Icons.folder : Icons.assignment, color: context.brand),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  isCase ? 'Case #$displayId: ${c.typeName}' : 'Complaint #$displayId: ${c.typeName}', 
-                                                  style: const TextStyle(fontWeight: FontWeight.bold)
+                                          Row(
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 16,
+                                                backgroundColor: context.brand.withValues(alpha: 0.12),
+                                                child: Icon(isCase ? Icons.folder : Icons.assignment, size: 16, color: context.brand),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                isCase ? 'Case #$displayId' : 'Complaint #$displayId',
+                                                style: TextStyle(
+                                                  fontFamily: 'monospace',
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 12,
+                                                  color: context.brand,
                                                 ),
-                                                Text('Filed on: ${DateFormat('MMM dd, yyyy').format(c.dateFiled)}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                                                Text('Respondent: ${c.respondent?.fullName ?? 'Unidentified'}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                                              ],
-                                            ),
+                                              ),
+                                            ],
                                           ),
                                           _buildStatusBadge(c.status),
                                         ],
                                       ),
-                                    ),
-                                  ),
-                                  if (canAttach)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                                      child: Row(
+                                      const SizedBox(height: 12),
+
+                                      // Full-Width Category Title (Never squeezed)
+                                      Text(
+                                        c.typeName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 16,
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Metadata details
+                                      Row(
                                         children: [
-                                          const Spacer(),
-                                          ElevatedButton.icon(
-                                            onPressed: () {
-                                              if (c.caseId != null) {
-                                                _pickAndUploadEvidence(context, caseId: c.caseId);
-                                              } else {
-                                                _pickAndUploadEvidence(context, complaintId: c.id);
-                                              }
-                                            },
-                                            icon: const Icon(Icons.attach_file, size: 18),
-                                            label: const Text('Attach Evidence'),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.blueGrey[50],
-                                              foregroundColor: Colors.blueGrey[800],
-                                              elevation: 0,
+                                          const Icon(Icons.calendar_today, size: 13, color: AppTheme.textSecondary),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Filed on: ${DateFormat('MMM dd, yyyy').format(c.dateFiled)}',
+                                            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Icon(Icons.person_outline, size: 14, color: AppTheme.textSecondary),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              'Resp: ${c.respondent?.fullName ?? 'Unidentified'}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                ],
+
+                                      if (canAttach) ...[
+                                        const SizedBox(height: 12),
+                                        const Divider(height: 1),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'I-tap para sa buong detalye →',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                            OutlinedButton.icon(
+                                              onPressed: () {
+                                                if (c.caseId != null) {
+                                                  _pickAndUploadEvidence(context, caseId: c.caseId);
+                                                } else {
+                                                  _pickAndUploadEvidence(context, complaintId: c.id);
+                                                }
+                                              },
+                                              icon: const Icon(Icons.attach_file, size: 16),
+                                              label: const Text('Attach Evidence', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                              style: OutlinedButton.styleFrom(
+                                                minimumSize: const Size(44, 38),
+                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
                               ),
                             );
                           },

@@ -10,7 +10,7 @@ import '../../providers/auth_provider.dart';
 class SocialLoginButtons extends StatefulWidget {
   /// Shown above the buttons, e.g. "or continue with".
   final String label;
-  const SocialLoginButtons({super.key, this.label = 'O mag-continue gamit ang'});
+  const SocialLoginButtons({super.key, this.label = 'or continue with'});
 
   @override
   State<SocialLoginButtons> createState() => _SocialLoginButtonsState();
@@ -94,18 +94,25 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
     if (!google && !facebook) return const SizedBox.shrink();
 
     Widget button({required Widget icon, required String text, required VoidCallback? onTap}) => SizedBox(
-          height: 48,
+          height: 44,
           child: OutlinedButton.icon(
             onPressed: onTap,
             icon: icon,
-            label: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
+            label: Text(
+              text,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+            ),
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black87,
-              side: BorderSide(color: Colors.grey.shade300, width: 1.5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              foregroundColor: const Color(0xFF1F2937),
+              side: const BorderSide(color: Color(0xFFD1D5DB), width: 1.0),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
           ),
         );
+
+    final both = google && facebook;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -114,31 +121,58 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
           const Expanded(child: Divider()),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(widget.label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+            child: Text(
+              widget.label,
+              style: const TextStyle(color: Color(0xFF475569), fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ),
           const Expanded(child: Divider()),
         ]),
-        const SizedBox(height: 14),
-        if (google)
-          button(
-            icon: const Text('G', style: TextStyle(color: Color(0xFFDB4437), fontSize: 20, fontWeight: FontWeight.w900)),
-            text: 'Continue with Google',
-            onTap: _busy ? null : _google,
-          ),
-        if (google && facebook) const SizedBox(height: 10),
-        if (facebook)
-          button(
-            icon: const Icon(Icons.facebook, color: Color(0xFF1877F2)),
-            text: 'Continue with Facebook',
-            onTap: _busy ? null : _facebook,
-          ),
+        const SizedBox(height: 12),
+        if (both)
+          Row(
+            children: [
+              Expanded(
+                child: button(
+                  icon: const Text('G', style: TextStyle(color: Color(0xFFDB4437), fontSize: 18, fontWeight: FontWeight.w900)),
+                  text: 'Google',
+                  onTap: _busy ? null : _google,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: button(
+                  icon: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 20),
+                  text: 'Facebook',
+                  onTap: _busy ? null : _facebook,
+                ),
+              ),
+            ],
+          )
+        else ...[
+          if (google)
+            button(
+              icon: const Text('G', style: TextStyle(color: Color(0xFFDB4437), fontSize: 18, fontWeight: FontWeight.w900)),
+              text: 'Continue with Google',
+              onTap: _busy ? null : _google,
+            ),
+          if (facebook)
+            button(
+              icon: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 20),
+              text: 'Continue with Facebook',
+              onTap: _busy ? null : _facebook,
+            ),
+        ],
         if (_error != null) ...[
           const SizedBox(height: 10),
           Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
         ],
         const SizedBox(height: 8),
-        Text('Para sa mga residente lamang. Sa pag-continue, sumasang-ayon ka sa Terms of Use.',
-            textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+        const Text(
+          'Para sa mga residente lamang. Sa pag-continue, sumasang-ayon ka sa Terms of Use.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+        ),
       ],
     );
   }

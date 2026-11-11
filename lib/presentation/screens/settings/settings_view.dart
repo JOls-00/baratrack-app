@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -23,6 +26,9 @@ class _SettingsViewState extends State<SettingsView> {
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
+  XFile? _pickedImage;
+  final ImagePicker _picker = ImagePicker();
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -43,23 +49,91 @@ class _SettingsViewState extends State<SettingsView> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Palitan ang Profile Photo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                  child: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
+                ),
+                title: const Text('Kumuha gamit ang Camera'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                  child: Icon(Icons.photo_library, color: Theme.of(context).colorScheme.primary),
+                ),
+                title: const Text('Pumili mula sa Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source != null) {
+      final XFile? image = await _picker.pickImage(source: source, maxWidth: 600, maxHeight: 600, imageQuality: 80);
+      if (image != null) {
+        setState(() {
+          _pickedImage = image;
+        });
+      }
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      await context.read<AuthProvider>().updateProfile(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        contact: _phoneController.text.trim(),
-        address: _addressController.text.trim(),
-      );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+      setState(() => _isSaving = true);
+      final messenger = ScaffoldMessenger.of(context);
+
+      try {
+        String? avatarBase64;
+        if (_pickedImage != null) {
+          final bytes = await _pickedImage!.readAsBytes();
+          avatarBase64 = base64Encode(bytes);
+        }
+
+        await context.read<AuthProvider>().updateProfile(
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          contact: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+          avatarBase64: avatarBase64,
         );
+        
+        if (mounted) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Matagumpay na na-update ang profile!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Hindi na-update: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
       }
     }
   }
@@ -154,39 +228,77 @@ class _SettingsViewState extends State<SettingsView> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Stack(
+                      Builder(
+                        builder: (context) {
+                          final user = context.watch<AuthProvider>().user;
+                          final avatarUrl = user?.avatarUrl;
+
+                          ImageProvider? imageProvider;
+                          if (_pickedImage != null) {
+                            imageProvider = FileImage(File(_pickedImage!.path));
+                          } else if (avatarUrl != null && avatarUrl.isNotEmpty) {
+                            imageProvider = NetworkImage(
+                              avatarUrl.startsWith('http') ? avatarUrl : '${AppConstants.baseUrl}/$avatarUrl',
+                            );
+                          }
+
+                          return Row(
                             children: [
-                              CircleAvatar(
-                                radius: 48,
-                                backgroundColor: context.brand,
-                                child: Icon(Icons.person, size: 48, color: Colors.white),
+                              GestureDetector(
+                                onTap: _pickImage,
+                                child: Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 46,
+                                      backgroundColor: context.brand,
+                                      backgroundImage: imageProvider,
+                                      child: imageProvider == null
+                                          ? Text(
+                                              (user?.name.isNotEmpty ?? false) ? user!.name[0].toUpperCase() : 'U',
+                                              style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
+                                            )
+                                          : null,
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4),
+                                          ],
+                                        ),
+                                        child: Icon(Icons.camera_alt, size: 18, color: context.brand),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                  child: Icon(Icons.camera_alt, size: 20, color: context.brand),
+                              SizedBox(width: narrow ? 16 : 32),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Profile Picture', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                    const Text('PNG o JPG. Max 5MB.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                                    const SizedBox(height: 10),
+                                    OutlinedButton.icon(
+                                      onPressed: _pickImage,
+                                      icon: const Icon(Icons.upload, size: 16),
+                                      label: const Text('Upload New Image'),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
-                          ),
-                          SizedBox(width: narrow ? 16 : 32),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Profile Picture', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                Text('PNG or JPG. Max 2MB.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
-                                SizedBox(height: 8),
-                                OutlinedButton(onPressed: null, child: Text('Upload New Image')),
-                              ],
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 40),
                       _pair(
@@ -209,8 +321,10 @@ class _SettingsViewState extends State<SettingsView> {
                           OutlinedButton(onPressed: () {}, child: const Text('Cancel')),
                           const SizedBox(width: 16),
                           ElevatedButton(
-                            onPressed: _saveProfile,
-                            child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                            onPressed: _isSaving ? null : _saveProfile,
+                            child: _isSaving
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),

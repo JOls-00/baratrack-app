@@ -430,11 +430,11 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                         ],
                       ),
                     ),
-                  _buildSectionHeader('Respondent Selection'),
-                  const SizedBox(height: 16),
+                  _buildSectionHeader('1. Sino ang Kasangkot (Respondent)'),
+                  const SizedBox(height: 10),
                   CheckboxListTile(
-                    title: const Text('Respondent unknown or not identified'),
-                    subtitle: const Text('Check this if the identity of the person is not yet known.'),
+                    title: const Text('Respondent unknown or not identified', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    subtitle: const Text('Lagyan ng tsek kung hindi pa kilala ang inirereklamo.', style: TextStyle(fontSize: 12)),
                     value: _respondentUnknown,
                     onChanged: (val) {
                       setState(() {
@@ -445,18 +445,20 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  const SizedBox(height: 16),
-                  if (!_respondentUnknown) _buildRespondentPicker(user?.residentId),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Incident Information'),
-                  const SizedBox(height: 16),
+                  if (!_respondentUnknown) ...[
+                    const SizedBox(height: 10),
+                    _buildRespondentPicker(user?.residentId),
+                  ],
+                  const SizedBox(height: 28),
+                  _buildSectionHeader('2. Saan at Kailan (Incident Info)'),
+                  const SizedBox(height: 12),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final isNarrow = constraints.maxWidth < 600;
                       final categoryField = DropdownButtonFormField<String>(
                         initialValue: _selectedCategory,
                         decoration: const InputDecoration(
-                          labelText: 'Incident Category',
+                          labelText: 'Uri ng Reklamo / Category',
                           prefixIcon: Icon(Icons.category_outlined),
                         ),
                         items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
@@ -466,7 +468,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                         controller: _locationController,
                         onChanged: (_) => _addressAutoFilled = false, // typed by the person: never overwrite it
                         decoration: const InputDecoration(
-                          labelText: "Place of Incident",
+                          labelText: "Lugar ng Insidente (Location)",
                           hintText: "Purok, Street, Landmark",
                           helperText: 'Awtomatikong napupunan kapag naglagay ng pin.',
                           prefixIcon: Icon(Icons.location_on_outlined),
@@ -478,7 +480,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                         return Column(
                           children: [
                             categoryField,
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             locationField,
                           ],
                         );
@@ -486,20 +488,20 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       return Row(
                         children: [
                           Expanded(child: categoryField),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 14),
                           Expanded(child: locationField),
                         ],
                       );
                     },
                   ),
                   const SizedBox(height: 16),
-                  Text('Pin the location (optional)', style: Theme.of(context).textTheme.titleSmall),
+                  Text('Pin the location (opsyonal)', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
                     'Hindi laging ang kinalalagyan mo ang pinangyarihan. I-tap ang mapa para ilipat ang pin. Hindi mo kailangang ibahagi ang location mo para mag-file.',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   LocationPicker(
                     value: _incidentPoint,
                     hidePinMap: isOffline,
@@ -514,53 +516,99 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       }
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
-                        child: ListTile(
-                          title: const Text('Date of Incident'),
-                          subtitle: Text(DateFormat('yyyy-MM-dd').format(_incidentDate)),
-                          leading: const Icon(Icons.calendar_today),
+                        child: InkWell(
                           onTap: _selectDate,
-                          shape: RoundedRectangleBorder(
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Theme.of(context).cardTheme.color ?? Colors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.calendar_today, size: 18, color: context.brand),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('Petsa / Date', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        DateFormat('MMM dd, yyyy').format(_incidentDate),
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: ListTile(
-                          title: const Text('Time of Incident'),
-                          subtitle: Text(_incidentTime.format(context)),
-                          leading: const Icon(Icons.access_time),
+                        child: InkWell(
                           onTap: _selectTime,
-                          shape: RoundedRectangleBorder(
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Theme.of(context).cardTheme.color ?? Colors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time, size: 18, color: context.brand),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('Oras / Time', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _incidentTime.format(context),
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Incident Narrative'),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 28),
+                  _buildSectionHeader('3. Ano ang Nangyari (Incident Narrative)'),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _narrativeController,
                     maxLines: 6,
                     style: Theme.of(context).textTheme.bodyMedium,
                     decoration: const InputDecoration(
-                      labelText: "Detailed Description",
-                      hintText: "Explain what happened in detail...",
+                      labelText: "Detalyadong Salaysay (Description)",
+                      hintText: "Ipaliwanag nang malinaw ang buong pangyayari...",
                       alignLabelWithHint: true,
                     ),
                     validator: (v) => Validators.validateRequired(v, 'Narrative'),
                   ),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Evidence Attachments'),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 28),
+                  _buildSectionHeader('4. Katibayan (Evidence Attachments)'),
+                  const SizedBox(height: 12),
                   _buildEvidenceSection(),
                   const SizedBox(height: 48),
                   SizedBox(

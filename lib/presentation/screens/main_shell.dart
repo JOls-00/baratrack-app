@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/version_provider.dart';
+import '../../config/app_constants.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../../core/network/connectivity_provider.dart';
 import '../../data/repositories/offline_queue_repository.dart';
@@ -154,8 +155,10 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  /// Phone navigation: four main places plus "More", which opens the full menu.
+  /// Phone navigation: floating pill inset from edges with rounded corners and soft shadow.
   Widget _buildBottomBar(BuildContext context, bool isResident, int selectedIndex) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final items = isResident
         ? const [
             ('Home', Icons.home_outlined, Icons.home),
@@ -169,20 +172,55 @@ class _MainShellState extends State<MainShell> {
             ('Inbox', Icons.inbox_outlined, Icons.inbox),
             ('Cases', Icons.folder_outlined, Icons.folder),
           ];
-    return NavigationBar(
-      selectedIndex: selectedIndex < 4 ? selectedIndex : 4,
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      onDestinationSelected: (i) {
-        if (i < 4) {
-          _onItemTapped(i, context, isResident);
-        } else {
-          _scaffoldKey.currentState?.openDrawer();
-        }
-      },
-      destinations: [
-        for (final it in items) NavigationDestination(icon: Icon(it.$2), selectedIcon: Icon(it.$3), label: it.$1),
-        const NavigationDestination(icon: Icon(Icons.menu), label: 'More'),
-      ],
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(
+            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: NavigationBar(
+            height: 62,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            selectedIndex: selectedIndex < 4 ? selectedIndex : 4,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            onDestinationSelected: (i) {
+              if (i < 4) {
+                _onItemTapped(i, context, isResident);
+              } else {
+                _scaffoldKey.currentState?.openDrawer();
+              }
+            },
+            destinations: [
+              for (final it in items)
+                NavigationDestination(
+                  icon: Icon(it.$2, size: 22),
+                  selectedIcon: Icon(it.$3, size: 22),
+                  label: it.$1,
+                ),
+              const NavigationDestination(
+                icon: Icon(Icons.menu, size: 22),
+                label: 'More',
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -298,13 +336,21 @@ class _MainShellState extends State<MainShell> {
     final theme = Theme.of(context);
     final String name = (user?.name as String?) ?? 'User';
     final String role = (user?.role as String?) ?? 'Role';
+    final String? avatarUrl = user?.avatarUrl as String?;
+    final ImageProvider? avatarProvider = (avatarUrl != null && avatarUrl.isNotEmpty)
+        ? NetworkImage(avatarUrl.startsWith('http') ? avatarUrl : '${AppConstants.baseUrl}/$avatarUrl')
+        : null;
+
     final avatar = CircleAvatar(
-      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+      backgroundImage: avatarProvider,
       radius: 18,
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'U',
-        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 12),
-      ),
+      child: avatarProvider == null
+          ? Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'U',
+              style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 12),
+            )
+          : null,
     );
     final profileRoute = role == 'Resident' ? '/profile' : '/settings';
 
