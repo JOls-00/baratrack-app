@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../config/app_constants.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/widgets/hover_pop.dart';
 import '../../../data/repositories/branding_repository.dart';
@@ -620,7 +621,7 @@ class _CtaCard extends StatelessWidget {
               }
             },
             icon: const Icon(Icons.android_rounded, size: 18),
-            label: const Text('Download Android APK (v1.0.15)'),
+            label: const Text('Download Android APK (v${AppConstants.appVersion})'),
           ),
         ),
     ]);

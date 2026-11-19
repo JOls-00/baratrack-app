@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/version_provider.dart';
+import '../../../config/app_constants.dart';
 import '../../../core/widgets/hover_pop.dart';
 import '../portal/landing_sections.dart';
 import 'auth_shell.dart';
@@ -201,8 +202,8 @@ class _LoginPageState extends State<LoginPage> {
                     icon: const Icon(Icons.android_rounded, size: 19),
                     label: Text(
                       isFil
-                          ? 'I-download ang Android App (v1.0.15 APK)'
-                          : 'Download BaraTrack Android App (v1.0.15 APK)',
+                          ? 'I-download ang Android App (v${AppConstants.appVersion} APK)'
+                          : 'Download BaraTrack Android App (v${AppConstants.appVersion} APK)',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     style: OutlinedButton.styleFrom(
