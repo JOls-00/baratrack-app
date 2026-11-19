@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'auth_shell.dart';
 import 'pending_approval_screen.dart';
 import 'social_login_buttons.dart';
@@ -464,11 +465,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authStatus = context.watch<AuthProvider>().status;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final isLoading = authStatus == AuthStatus.authenticating;
 
     return AuthShell(
       title: 'Create your account',
-      subtitle: 'Gumawa ng account para makapag-file ng reklamo at makatanggap ng abiso.',
+      subtitle: isFil
+          ? 'Gumawa ng account para makapag-file ng reklamo at makatanggap ng abiso.'
+          : 'Create an account to file complaints and receive barangay alerts.',
       child: Form(
         key: _formKey,
         child: Column(
@@ -506,12 +510,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
             // Residents only: barangay staff accounts are issued by the administrator.
             Text(
-              'Para sa mga residente ang online registration. Ang mga account ng barangay staff ay ginagawa ng administrator.',
+              isFil
+                  ? 'Para sa mga residente ang online registration. Ang mga account ng barangay staff ay ginagawa ng administrator.'
+                  : 'Online registration is for residents only. Barangay staff accounts are issued by the administrator.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 16),
-            const SocialLoginButtons(label: 'Mabilis na sign-up gamit ang'),
+            SocialLoginButtons(label: isFil ? 'Mabilis na sign-up gamit ang' : 'Quick sign-up with'),
             const SizedBox(height: 16),
 
             // Full Name (one field; the first name becomes the username automatically)

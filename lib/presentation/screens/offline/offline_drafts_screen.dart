@@ -12,6 +12,7 @@ import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/evidence_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../complaints/file_complaint_screen.dart';
 import '../profile/resident_registration_screen.dart';
 
@@ -30,8 +31,11 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final isResident = user?.role == 'Resident';
-    final title = isResident ? 'Offline Drafts & History' : 'Pending Sync';
+    final title = isResident
+        ? (isFil ? 'Mga Draft at Kasaysayan Offline' : 'Offline Drafts & History')
+        : (isFil ? 'Nakabinbing Pag-sync' : 'Pending Sync');
 
     final queueRepo = context.watch<OfflineQueueRepository>();
     final allItems = queueRepo.items;
@@ -60,7 +64,9 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                 });
               },
               child: Text(
-                _selectedIds.length == items.length ? 'Deselect All' : 'Select All',
+                _selectedIds.length == items.length
+                    ? (isFil ? 'Alisin Lahat' : 'Deselect All')
+                    : (isFil ? 'Piliin Lahat' : 'Select All'),
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
@@ -76,12 +82,14 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                     Icon(Icons.drafts_outlined, size: 72, color: Colors.grey.shade400),
                     const SizedBox(height: 16),
                     Text(
-                      'Walang Naka-save na Draft',
+                      isFil ? 'Walang Naka-save na Draft' : 'No Saved Drafts',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Ang anumang reklamo o ulat na ginawa offline ay lalabas dito para mai-sync.',
+                      isFil
+                          ? 'Ang anumang reklamo o ulat na ginawa offline ay lalabas dito para mai-sync.'
+                          : 'Any complaint or report made offline will appear here for syncing.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     ),
@@ -96,7 +104,7 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
               itemBuilder: (context, index) {
                 final item = items[index];
                 final isSelected = _selectedIds.contains(item.id);
-                return _buildDraftCard(item, isSelected, isResident, isOnline);
+                return _buildDraftCard(item, isSelected, isResident, isOnline, isFil);
               },
             ),
       bottomNavigationBar: items.isEmpty
@@ -112,7 +120,7 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        '${_selectedIds.length} napili',
+                        isFil ? '${_selectedIds.length} napili' : '${_selectedIds.length} selected',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
@@ -129,7 +137,11 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                       icon: _isSyncing
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : const Icon(Icons.cloud_upload_outlined, size: 18),
-                      label: Text(_isSyncing ? 'Sini-sync...' : 'Submit Selected'),
+                      label: Text(
+                        _isSyncing
+                            ? (isFil ? 'Sini-sync...' : 'Syncing...')
+                            : (isFil ? 'I-submit ang Napili' : 'Submit Selected'),
+                      ),
                     ),
                   ],
                 ),
@@ -138,7 +150,7 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
     );
   }
 
-  Widget _buildDraftCard(OfflineQueueItem item, bool isSelected, bool isResident, bool isOnline) {
+  Widget _buildDraftCard(OfflineQueueItem item, bool isSelected, bool isResident, bool isOnline, bool isFil) {
     final payload = item.payload;
     final category = payload['category']?.toString() ?? 'Complaint';
     final narrative = payload['narrative']?.toString() ?? '';
@@ -212,7 +224,9 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Walang salaysay — I-tap ang "Edit" para lagyan ng detalye bago i-submit',
+                        isFil
+                            ? 'Walang salaysay — I-tap ang "Edit" para lagyan ng detalye bago i-submit'
+                            : 'No narrative — Tap "Edit" to provide details before submitting',
                         style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -288,7 +302,7 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                   TextButton.icon(
                     style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                     icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Edit'),
+                    label: Text(isFil ? 'I-edit' : 'Edit'),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -304,7 +318,7 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const Text('Delete'),
+                  label: Text(isFil ? 'Burahin' : 'Delete'),
                   onPressed: () => _confirmDelete(item.id),
                 ),
               ],

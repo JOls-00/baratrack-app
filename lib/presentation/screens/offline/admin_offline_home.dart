@@ -7,6 +7,7 @@ import '../../../core/router/app_router.dart';
 import '../../../data/models/offline_queue_item.dart';
 import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'offline_drafts_screen.dart';
 
 class AdminOfflineHome extends StatefulWidget {
@@ -77,6 +78,7 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final queueRepo = context.watch<OfflineQueueRepository>();
     final pendingCount = queueRepo.draftCount;
 
@@ -96,7 +98,7 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Bumalik sa Online Mode',
+          tooltip: isFil ? 'Bumalik sa Online Mode' : 'Back to Online Mode',
           onPressed: () => AppRouter.exitOfflineMode(),
         ),
         actions: [
@@ -162,6 +164,7 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
   }
 
   Widget _buildCasesTab() {
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     if (_cachedCases.isEmpty) {
       return Center(
         child: Padding(
@@ -171,10 +174,15 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
             children: [
               Icon(Icons.folder_open_outlined, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              const Text('Walang Naka-cache na Kaso', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(
+                isFil ? 'Walang Naka-cache na Kaso' : 'No Cached Cases',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               Text(
-                'Awtomatikong magka-cache ang mga kaso kapag nag-browse ka habang online.',
+                isFil
+                    ? 'Awtomatikong magka-cache ang mga kaso kapag nag-browse ka habang online.'
+                    : 'Cases are automatically cached here as you browse them while online.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
@@ -257,6 +265,7 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
   }
 
   Widget _buildHearingsTab() {
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     if (_cachedHearings.isEmpty) {
       return Center(
         child: Padding(
@@ -266,10 +275,15 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
             children: [
               Icon(Icons.event_busy_outlined, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              const Text('Walang Naka-cache na Hearing', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(
+                isFil ? 'Walang Naka-cache na Hearing' : 'No Cached Hearings',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               Text(
-                'Ang mga hearing schedule ay naka-cache mula sa iyong huling online session.',
+                isFil
+                    ? 'Ang mga hearing schedule ay naka-cache mula sa iyong huling online session.'
+                    : 'Hearing schedules are cached from your last online session.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),

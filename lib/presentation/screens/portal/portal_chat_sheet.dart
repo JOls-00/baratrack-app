@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../config/app_theme.dart';
 import '../../providers/branding_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/portal_provider.dart';
 import 'portal_greeting.dart';
 
@@ -42,8 +43,9 @@ class _ChatSheetState extends State<_ChatSheet> {
   void initState() {
     super.initState();
     final name = context.read<BrandingProvider>().info.name;
-    _greeting = PortalGreeting.opening(name, widget.page);
-    _suggestions = PortalGreeting.suggestions(widget.page);
+    final isFil = context.read<LocaleProvider>().isFilipino;
+    _greeting = PortalGreeting.opening(name, widget.page, isFil: isFil);
+    _suggestions = PortalGreeting.suggestions(widget.page, isFil: isFil);
   }
 
   @override

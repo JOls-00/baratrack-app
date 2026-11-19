@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/repositories/portal_repository.dart';
 import '../../providers/portal_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'landing_sections.dart';
 import 'portal_shell.dart';
 
@@ -26,6 +27,7 @@ class _FaqScreenState extends State<FaqScreen> {
   @override
   Widget build(BuildContext context) {
     final portal = context.watch<PortalProvider>();
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final primary = brandPrimary(context);
     final faqs = portal.faqs;
     final query = _search.text.trim().toLowerCase();
@@ -45,7 +47,9 @@ class _FaqScreenState extends State<FaqScreen> {
       current: 'faqs',
       child: SectionFrame(
         title: 'Frequently Asked Questions',
-        subtitle: 'Narito ang mga sagot sa pinakakaraniwang tanong tungkol sa pagsusumite at pag-track ng reklamo, account security, at privacy.',
+        subtitle: isFil
+            ? 'Narito ang mga sagot sa pinakakaraniwang tanong tungkol sa pagsusumite at pag-track ng reklamo, account security, at privacy.'
+            : 'Common questions about filing and tracking complaints, account security, and data privacy.',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,9 +58,11 @@ class _FaqScreenState extends State<FaqScreen> {
               child: TextField(
                 controller: _search,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'Search FAQs — halimbawa: OTP, hearing, reklamo',
-                  prefixIcon: Icon(Icons.search),
+                decoration: InputDecoration(
+                  hintText: isFil
+                      ? 'Search FAQs — halimbawa: OTP, hearing, reklamo'
+                      : 'Search FAQs — e.g. OTP, hearing, complaint',
+                  prefixIcon: const Icon(Icons.search),
                 ),
               ),
             ),
@@ -84,7 +90,10 @@ class _FaqScreenState extends State<FaqScreen> {
                 Text('Search results', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
               if (items.isEmpty)
-                const Padding(padding: EdgeInsets.all(24), child: Text('Walang nahanap. Subukan ang ibang salita.'))
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(isFil ? 'Walang nahanap. Subukan ang ibang salita.' : 'No matching FAQs found. Try another keyword.'),
+                )
               else
                 for (final item in items)
                   Card(

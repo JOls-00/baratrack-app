@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_theme.dart';
+import '../../../core/widgets/hover_pop.dart';
 import '../../../data/repositories/branding_repository.dart';
 import '../../providers/branding_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'landing_sections.dart';
 import 'portal_shell.dart';
 import 'track_panel.dart';
@@ -27,7 +31,7 @@ class LandingScreen extends StatelessWidget {
           const _Features(),
           const _WhyBento(),
           const _StepsBand(),
-          _Community(brand: b.info, officialsCount: b.officials.length),
+          _Community(brand: b.info, officialsCount: b.officials.isEmpty ? 11 : b.officials.length),
           OfficialsSection(officials: b.officials, background: Color.alphaBlend(b.info.primary.withValues(alpha: 0.05), Colors.white)),
           AlbumSection(brand: b.info, limit: 6),
           HistorySection(brand: b.info),
@@ -61,8 +65,7 @@ class _Heading extends StatelessWidget {
   final String eyebrow;
   final String title;
   final bool center;
-  final Color? color;
-  const _Heading(this.eyebrow, this.title, {this.center = true, this.color});
+  const _Heading(this.eyebrow, this.title, {this.center = true});
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +75,12 @@ class _Heading extends StatelessWidget {
       children: [
         Text(eyebrow.toUpperCase(),
             style: TextStyle(
-                color: color == null ? primary : AppTheme.sunYellow, fontSize: 12, letterSpacing: 1.8, fontWeight: FontWeight.w700)),
+                color: primary, fontSize: 12, letterSpacing: 1.8, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
         Text(title,
             textAlign: center ? TextAlign.center : TextAlign.start,
             style: TextStyle(
-                color: color ?? AppTheme.inkDark, fontSize: 32, height: 1.15, letterSpacing: -0.6, fontWeight: FontWeight.w800)),
+                color: AppTheme.inkDark, fontSize: 32, height: 1.15, letterSpacing: -0.6, fontWeight: FontWeight.w800)),
       ],
     );
   }
@@ -237,10 +240,23 @@ class _Features extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = brandPrimary(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final items = [
-      (Icons.edit_note, 'File online', 'Ilahad ang detalye ng reklamo kahit anong oras, mula sa phone o computer.'),
-      (Icons.attach_file, 'Attach evidence', 'Magdagdag ng larawan o dokumento bilang ebidensya sa iyong reklamo.'),
-      (Icons.event_available_outlined, 'Status and hearing dates', 'Alamin ang kasalukuyang status at ang petsa ng hearing gamit ang reference number.'),
+      (
+        Icons.edit_note,
+        'File online',
+        isFil ? 'Ilahad ang detalye ng reklamo kahit anong oras, mula sa phone o computer.' : 'Share complaint details anytime from your phone or computer.',
+      ),
+      (
+        Icons.attach_file,
+        'Attach evidence',
+        isFil ? 'Magdagdag ng larawan o dokumento bilang ebidensya sa iyong reklamo.' : 'Attach photos or documents as supporting evidence for your complaint.',
+      ),
+      (
+        Icons.event_available_outlined,
+        'Status and hearing dates',
+        isFil ? 'Alamin ang kasalukuyang status at ang petsa ng hearing gamit ang reference number.' : 'Check your current status and hearing dates using your reference number.',
+      ),
     ];
     return _page(
       Container(
@@ -248,9 +264,15 @@ class _Features extends StatelessWidget {
         decoration: _cardDeco(primary),
         child: LayoutBuilder(builder: (context, c) {
           final wide = c.maxWidth > 760;
-          final title = const _Heading('Mga serbisyo', 'Serbisyong abot-kamay,\nanumang oras.', center: false);
+          final title = _Heading(
+            isFil ? 'Mga serbisyo' : 'Services',
+            isFil ? 'Serbisyong abot-kamay,\nanumang oras.' : 'Accessible service,\nanytime.',
+            center: false,
+          );
           final desc = Text(
-            'Dinisenyo ang portal para madali sa bawat residente: mag-file, mag-attach ng ebidensya, at sumubaybay nang hindi na kailangang magtanong sa barangay hall para lang sa update.',
+            isFil
+                ? 'Dinisenyo ang portal para madali sa bawat residente: mag-file, mag-attach ng ebidensya, at sumubaybay nang hindi na kailangang magtanong sa barangay hall para lang sa update.'
+                : 'Designed for every resident: file complaints, attach evidence, and track case progress without visiting the barangay hall just for updates.',
             style: TextStyle(color: Colors.grey.shade700, height: 1.5),
           );
           final cols = wide ? 3 : 1;
@@ -295,6 +317,7 @@ class _WhyBento extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = brandPrimary(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final dark = shadeColor(primary, -0.34);
 
     Widget tile(Widget child) => Container(
@@ -306,7 +329,10 @@ class _WhyBento extends StatelessWidget {
     final big = tile(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('24/7', style: TextStyle(fontSize: 64, height: 1, fontWeight: FontWeight.w800, color: primary, letterSpacing: -2)),
       const SizedBox(height: 10),
-      const Text('Online filing at any hour, kahit nasa labas ka ng barangay hall.', style: TextStyle(fontSize: 16, height: 1.4)),
+      Text(
+        isFil ? 'Online filing at any hour, kahit nasa labas ka ng barangay hall.' : 'Online filing anytime, even away from the barangay hall.',
+        style: const TextStyle(fontSize: 16, height: 1.4),
+      ),
     ]));
 
     final instant = tile(Row(children: [
@@ -314,7 +340,12 @@ class _WhyBento extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Check your case status instantly', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.2)),
           const SizedBox(height: 8),
-          Text('Ilagay ang reference number at apelyido. Hindi mo kailangang mag-login.', style: TextStyle(color: Colors.grey.shade700, height: 1.4)),
+          Text(
+            isFil
+                ? 'Ilagay ang reference number at apelyido. Hindi mo kailangang mag-login.'
+                : 'Enter your reference number and last name. No login required.',
+            style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+          ),
         ]),
       ),
       const SizedBox(width: 16),
@@ -331,8 +362,12 @@ class _WhyBento extends StatelessWidget {
       final text = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Clear case progress', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
-        Text('Bawat yugto ng iyong reklamo ay makikita mo, mula pagsumite hanggang sa resolusyon.',
-            style: TextStyle(color: Colors.grey.shade700, height: 1.4)),
+        Text(
+          isFil
+              ? 'Bawat yugto ng iyong reklamo ay makikita mo, mula pagsumite hanggang sa resolusyon.'
+              : 'Follow every stage of your complaint, from submission to resolution.',
+          style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+        ),
       ]);
       final bars = Container(
         padding: const EdgeInsets.all(18),
@@ -358,7 +393,7 @@ class _WhyBento extends StatelessWidget {
 
     return _page(
       Column(children: [
-        const _Heading('Bakit BaraTrack', 'Why residents prefer BaraTrack'),
+        _Heading(isFil ? 'Bakit BaraTrack' : 'Why BaraTrack', 'Why residents prefer BaraTrack'),
         const SizedBox(height: 30),
         LayoutBuilder(builder: (context, c) {
           final wide = c.maxWidth > 760;
@@ -390,10 +425,20 @@ class _StepsBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = brandPrimary(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final steps = [
-      ('Create an account', 'Mag-register gamit ang iyong email at i-verify ito gamit ang code.'),
-      ('File your complaint', 'Ilahad ang detalye at magdagdag ng ebidensya, online at kahit anong oras.'),
-      ('Track the progress', 'Alamin ang status at petsa ng hearing gamit ang iyong reference number.'),
+      (
+        'Create an account',
+        isFil ? 'Mag-register gamit ang iyong email at i-verify ito gamit ang code.' : 'Register with your email and verify it with the OTP code.',
+      ),
+      (
+        'File your complaint',
+        isFil ? 'Ilahad ang detalye at magdagdag ng ebidensya, online at kahit anong oras.' : 'Share incident details and attach evidence online anytime.',
+      ),
+      (
+        'Track the progress',
+        isFil ? 'Alamin ang status at petsa ng hearing gamit ang iyong reference number.' : 'Check your status and hearing date using your reference number.',
+      ),
     ];
     return Container(
       width: double.infinity,
@@ -412,7 +457,11 @@ class _StepsBand extends StatelessWidget {
       ),
       child: _page(
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const _Heading('Paano gumagana', 'Tatlong hakbang para sa\nmabilis na serbisyo.', center: false),
+          _Heading(
+            isFil ? 'Paano gumagana' : 'How it works',
+            isFil ? 'Tatlong hakbang para sa\nmabilis na serbisyo.' : 'Three simple steps for\nfaster barangay service.',
+            center: false,
+          ),
           const SizedBox(height: 30),
           LayoutBuilder(builder: (context, c) {
             final cols = c.maxWidth > 720 ? 3 : 1;
@@ -489,9 +538,13 @@ class _Community extends StatelessWidget {
           ]),
         );
 
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     return _page(
       Column(children: [
-        _Heading('Aming komunidad', 'Isang barangay,\nisang pamayanan.'),
+        _Heading(
+          isFil ? 'Aming komunidad' : 'Our community',
+          isFil ? 'Isang barangay,\nisang pamayanan.' : 'One barangay,\none connected community.',
+        ),
         const SizedBox(height: 28),
         Wrap(spacing: 56, runSpacing: 20, alignment: WrapAlignment.center, children: [
           for (final s in stats)
@@ -526,12 +579,18 @@ class _CtaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = brandPrimary(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final dark = shadeColor(primary, -0.38);
-    final text = Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-      Text('Ready to file your complaint?',
+    final text = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Ready to file your complaint?',
           style: TextStyle(color: Colors.white, fontSize: 30, height: 1.15, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-      SizedBox(height: 10),
-      Text('Mag-create ng resident account at simulan ang iyong reklamo online.', style: TextStyle(color: Colors.white70, height: 1.45)),
+      const SizedBox(height: 10),
+      Text(
+        isFil
+            ? 'Mag-create ng resident account at simulan ang iyong reklamo online.'
+            : 'Create a resident account and submit your complaint online.',
+        style: const TextStyle(color: Colors.white70, height: 1.45),
+      ),
     ]);
     final buttons = Wrap(spacing: 12, runSpacing: 12, children: [
       FilledButton(
@@ -545,15 +604,88 @@ class _CtaCard extends StatelessWidget {
         onPressed: () => context.go('/login'),
         child: const Text('Resident login'),
       ),
+      if (kIsWeb)
+        HoverPop(
+          hoverScale: 1.03,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF059669),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            ),
+            onPressed: () async {
+              final url = Uri.parse('https://github.com/JOls-00/baratrack-app/releases/latest');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.android_rounded, size: 18),
+            label: const Text('Download Android APK (v1.0.15)'),
+          ),
+        ),
     ]);
+    final qrBox = kIsWeb
+        ? Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isFil ? 'SCAN WEB PORTAL QR' : 'SCAN WEB PORTAL QR',
+                  style: TextStyle(color: primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.8),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    'https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=6&data=${Uri.encodeComponent('https://jols-00.github.io/baratrack-app/')}',
+                    width: 132,
+                    height: 132,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const SizedBox(
+                      width: 132,
+                      height: 132,
+                      child: Center(child: Icon(Icons.qr_code_2_rounded, size: 72, color: Colors.black38)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'jols-00.github.io/baratrack-app',
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                ),
+              ],
+            ),
+          )
+        : null;
     return _page(
       Container(
         padding: const EdgeInsets.all(36),
         decoration: BoxDecoration(color: dark, borderRadius: BorderRadius.circular(28)),
         child: LayoutBuilder(builder: (context, c) {
-          return c.maxWidth > 760
-              ? Row(children: [Expanded(child: text), const SizedBox(width: 24), buttons])
-              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [text, const SizedBox(height: 22), buttons]);
+          final left = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [text, const SizedBox(height: 22), buttons],
+          );
+          if (c.maxWidth > 760) {
+            return Row(
+              children: [
+                Expanded(child: left),
+                if (qrBox != null) ...[const SizedBox(width: 24), qrBox],
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              left,
+              if (qrBox != null) ...[const SizedBox(height: 22), Center(child: qrBox)],
+            ],
+          );
         }),
       ),
     );

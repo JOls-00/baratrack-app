@@ -7,6 +7,7 @@ import '../../../config/app_theme.dart';
 import '../../../core/widgets/brand_logo.dart';
 import '../../../data/repositories/branding_repository.dart';
 import '../../providers/branding_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/portal_provider.dart';
 import 'landing_sections.dart';
 import 'portal_chat_sheet.dart';
@@ -303,9 +304,14 @@ class _ChatTeaserState extends State<_ChatTeaser> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        PortalGreeting.teaser(widget.barangay, widget.page),
-                        style: const TextStyle(color: Colors.black87, height: 1.35, fontSize: 13.5),
+                      child: Builder(
+                        builder: (ctx) {
+                          final isFil = ctx.watch<LocaleProvider>().isFilipino;
+                          return Text(
+                            PortalGreeting.teaser(widget.barangay, widget.page, isFil: isFil),
+                            style: const TextStyle(color: Colors.black87, height: 1.35, fontSize: 13.5),
+                          );
+                        },
                       ),
                     ),
                     InkWell(

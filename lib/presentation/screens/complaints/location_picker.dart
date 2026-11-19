@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+import '../../providers/locale_provider.dart';
 import 'map_layers.dart';
 import 'reverse_geocoder.dart';
 
@@ -64,18 +66,24 @@ class _LocationPickerState extends State<LocationPicker> {
     if (widget.onAddress == null) return;
     _geoTimer?.cancel();
     final seq = ++_geoSeq;
-    setState(() => _geoNote = 'Hinahanap ang address…');
+    final isFil = context.read<LocaleProvider>().isFilipino;
+    setState(() => _geoNote = isFil ? 'Hinahanap ang address…' : 'Looking up address…');
     _geoTimer = Timer(const Duration(milliseconds: 700), () async {
       String? a;
       try {
         a = await ReverseGeocoder.lookup(p);
       } catch (_) {}
       if (!mounted || seq != _geoSeq) return;
+      final filNow = context.read<LocaleProvider>().isFilipino;
       if (a != null) {
         widget.onAddress!(a);
-        setState(() => _geoNote = 'Napunan na ang Place of Incident. Puwede mo itong baguhin o dagdagan ng purok at landmark.');
+        setState(() => _geoNote = filNow
+            ? 'Napunan na ang Place of Incident. Puwede mo itong baguhin o dagdagan ng purok at landmark.'
+            : 'Place of Incident filled in. You can refine it or add purok and landmarks.');
       } else {
-        setState(() => _geoNote = 'Hindi makuha ang address. I-type na lang sa "Place of Incident".');
+        setState(() => _geoNote = filNow
+            ? 'Hindi makuha ang address. I-type na lang sa "Place of Incident".'
+            : 'Could not resolve address. Type it directly into "Place of Incident".');
       }
     });
   }
@@ -85,15 +93,20 @@ class _LocationPickerState extends State<LocationPicker> {
       _locating = true;
       _msg = null;
     });
+    final isFil = context.read<LocaleProvider>().isFilipino;
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        _fail('Naka-off ang location ng device mo. Puwede mong i-pin sa mapa o i-type ang address.');
+        _fail(isFil
+            ? 'Naka-off ang location ng device mo. Puwede mong i-pin sa mapa o i-type ang address.'
+            : 'Device location is turned off. You can pin the spot on the map or type the address.');
         return;
       }
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        _fail('Hindi pinayagan ang location. Okay lang iyon: i-pin sa mapa o i-type ang address.');
+        _fail(isFil
+            ? 'Hindi pinayagan ang location. Okay lang iyon: i-pin sa mapa o i-type ang address.'
+            : 'Location permission denied. No problem — pin it on the map or type the address.');
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
@@ -104,13 +117,18 @@ class _LocationPickerState extends State<LocationPicker> {
       _scheduleLookup(p);
       _map.move(p, 17);
       if (mounted) {
+        final filNow = context.read<LocaleProvider>().isFilipino;
         setState(() {
           _mode = _LocMode.pin;
-          _msg = 'Nakuha ang kinalalagyan mo. Kung ibang lugar ang pinangyarihan, i-tap ang mapa para ilipat ang pin.';
+          _msg = filNow
+              ? 'Nakuha ang kinalalagyan mo. Kung ibang lugar ang pinangyarihan, i-tap ang mapa para ilipat ang pin.'
+              : 'Got your location. If the incident happened elsewhere, tap the map to move the pin.';
         });
       }
     } catch (_) {
-      _fail('Hindi makuha ang location. I-pin sa mapa o i-type ang address.');
+      _fail(isFil
+          ? 'Hindi makuha ang location. I-pin sa mapa o i-type ang address.'
+          : 'Unable to fetch location. Pin on the map or type the address.');
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -129,6 +147,7 @@ class _LocationPickerState extends State<LocationPicker> {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     final point = widget.value;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -164,7 +183,9 @@ class _LocationPickerState extends State<LocationPicker> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: primary.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
-            child: const Text('Walang pin. Ilagay ang address sa "Place of Incident" sa itaas.'),
+            child: Text(isFil
+                ? 'Walang pin. Ilagay ang address sa "Place of Incident" sa itaas.'
+                : 'No map pin. Enter the address in "Location / Landmark" above.'),
           )
         else if (widget.hidePinMap)
           Container(
@@ -251,7 +272,7 @@ class _LocationPickerState extends State<LocationPicker> {
                       child: InkWell(
                         onTap: _locating ? null : _useGps,
                         child: Tooltip(
-                          message: 'Gamitin ang kasalukuyang lokasyon',
+                          message: isFil ? 'Gamitin ang kasalukuyang lokasyon' : 'Use current location',
                           child: Padding(
                             padding: const EdgeInsets.all(10),
                             child: _locating
@@ -276,7 +297,7 @@ class _LocationPickerState extends State<LocationPicker> {
               Expanded(
                 child: Text(
                   point == null
-                      ? 'I-tap ang mapa para ilagay ang pin sa pinangyarihan.'
+                      ? (isFil ? 'I-tap ang mapa para ilagay ang pin sa pinangyarihan.' : 'Tap the map to place a pin at the incident location.')
                       : 'Lat ${point.latitude.toStringAsFixed(5)} · Lng ${point.longitude.toStringAsFixed(5)}',
                   style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
                 ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
+import '../../presentation/providers/locale_provider.dart';
 
 /// Accessible Status Badge (Task 31)
 /// - Pairs every status with a semantic icon and text label (never color alone)
@@ -57,8 +59,13 @@ class StatusBadge extends StatelessWidget {
       icon = Icons.info_outline_rounded;
     }
 
+    bool isFil = true;
+    try {
+      isFil = context.watch<LocaleProvider>().isFilipino;
+    } catch (_) {}
+
     return Semantics(
-      label: 'Katayuan: $label',
+      label: isFil ? 'Katayuan: $label' : 'Status: $label',
       child: Container(
         constraints: BoxConstraints(minHeight: compact ? 24 : 28),
         padding: EdgeInsets.symmetric(

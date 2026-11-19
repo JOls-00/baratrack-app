@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../providers/locale_provider.dart';
 import '../../../config/app_theme.dart';
 import '../../../data/models/hearing_model.dart';
 
@@ -107,15 +109,17 @@ class HearingDetailsDialog {
         await launchUrl(calUrl, mode: LaunchMode.externalApplication);
       } else {
         if (context.mounted) {
+          final isFil = context.read<LocaleProvider>().isFilipino;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Hindi mabuksan ang kalendaryo sa device.')),
+            SnackBar(content: Text(isFil ? 'Hindi mabuksan ang kalendaryo sa device.' : 'Could not open the calendar app on this device.')),
           );
         }
       }
     } catch (_) {
       if (context.mounted) {
+        final isFil = context.read<LocaleProvider>().isFilipino;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('May naganap na error sa pagbukas ng kalendaryo.')),
+          SnackBar(content: Text(isFil ? 'May naganap na error sa pagbukas ng kalendaryo.' : 'An error occurred while opening the calendar.')),
         );
       }
     }

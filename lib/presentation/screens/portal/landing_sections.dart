@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/widgets/brand_logo.dart';
+import '../../../core/widgets/hover_pop.dart';
 import '../../../data/repositories/branding_repository.dart';
 import '../../../data/repositories/portal_repository.dart';
 import '../../providers/branding_provider.dart';
+import '../../providers/locale_provider.dart';
 
 /// Darkens (negative) or lightens (positive) a colour; used to derive shades from the theme colour.
 Color shadeColor(Color c, double delta) {
@@ -73,14 +75,29 @@ class HowItWorksSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = brandPrimary(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final steps = [
-      (Icons.person_add_alt_1, 'Create an account', 'Mag-register gamit ang iyong email at i-verify ito gamit ang code.'),
-      (Icons.edit_note, 'File your complaint', 'Ilahad ang detalye at magdagdag ng ebidensya, online at kahit anong oras.'),
-      (Icons.track_changes, 'Track the progress', 'Alamin ang status at petsa ng hearing gamit ang iyong reference number.'),
+      (
+        Icons.person_add_alt_1,
+        'Create an account',
+        isFil ? 'Mag-register gamit ang iyong email at i-verify ito gamit ang code.' : 'Register with your email and verify it using the code.',
+      ),
+      (
+        Icons.edit_note,
+        'File your complaint',
+        isFil ? 'Ilahad ang detalye at magdagdag ng ebidensya, online at kahit anong oras.' : 'Describe what happened and attach evidence online anytime.',
+      ),
+      (
+        Icons.track_changes,
+        'Track the progress',
+        isFil ? 'Alamin ang status at petsa ng hearing gamit ang iyong reference number.' : 'Check your case status and hearing dates with your reference number.',
+      ),
     ];
     return SectionFrame(
       title: 'How it works',
-      subtitle: 'Tatlong simpleng hakbang para sa mabilis na serbisyo ng barangay.',
+      subtitle: isFil
+          ? 'Tatlong simpleng hakbang para sa mabilis na serbisyo ng barangay.'
+          : 'Three simple steps for fast barangay public service.',
       child: LayoutBuilder(builder: (context, c) {
         final cols = c.maxWidth > 720 ? 3 : 1;
         final w = (c.maxWidth - 18 * (cols - 1)) / cols;
@@ -240,109 +257,529 @@ class OfficialAvatar extends StatelessWidget {
 /// Elected officials are written "Hon. Name"; the Hon. is added here so initials stay correct.
 String officialDisplayName(Official o) => (o.group == 'staff' || o.name.startsWith('Hon.')) ? o.name : 'Hon. ${o.name}';
 
+class _ChartOfficial {
+  final String name;
+  final String position;
+  final String committee;
+  final String assetPath;
+  final String? badge;
+  const _ChartOfficial({
+    required this.name,
+    required this.position,
+    required this.committee,
+    required this.assetPath,
+    this.badge,
+  });
+
+  String get initials {
+    final clean = name.replaceFirst(RegExp(r'^HON\.\s*', caseSensitive: false), '');
+    final parts = clean.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2);
+    return parts.map((p) => p[0]).join();
+  }
+}
+
+const _executiveSecretary = _ChartOfficial(
+  name: 'VANGIE C. BITBIT',
+  position: 'Barangay Secretary',
+  committee: 'Office of the Barangay Secretariat & Civil Registry',
+  assetPath: 'assets/officials/vangie-bitbit.jpg',
+  badge: 'Secretariat',
+);
+
+const _punongBarangay = _ChartOfficial(
+  name: 'HON. JUDY R. BALBERAN',
+  position: 'Punong Barangay',
+  committee: 'Chief Executive & Presiding Officer, Sangguniang Barangay',
+  assetPath: 'assets/officials/judy-balberan.jpg',
+  badge: 'Punong Barangay',
+);
+
+const _executiveTreasurer = _ChartOfficial(
+  name: 'BERNARDO N. BASCOS',
+  position: 'Barangay Treasurer',
+  committee: 'Office of the Barangay Treasury & Financial Management',
+  assetPath: 'assets/officials/bernardo-bascos.jpg',
+  badge: 'Treasury',
+);
+
+const _skChairman = _ChartOfficial(
+  name: 'HON. ELIZA V. CORPUZ',
+  position: 'SK Chairman',
+  committee: 'Chairman, Committee on Sports & Development, Culture & Arts',
+  assetPath: 'assets/officials/eliza-corpuz.jpg',
+  badge: 'Ex-Officio',
+);
+
+const List<_ChartOfficial> _kagawadsList = [
+  _ChartOfficial(
+    name: 'HON. JOHN B. SORIANO',
+    position: 'Barangay Kagawad',
+    committee: 'Chairman, Committee on Health, Sanitation and Social Services',
+    assetPath: 'assets/officials/john-soriano.jpg',
+    badge: 'Kagawad #1',
+  ),
+  _ChartOfficial(
+    name: 'HON. VIOLETA B. MACARAEG',
+    position: 'Barangay Kagawad',
+    committee: 'Chairman, Committee on Education, Commerce, Trade, Way & Means',
+    assetPath: 'assets/officials/violeta-macaraeg.jpg',
+    badge: 'Kagawad #2',
+  ),
+  _ChartOfficial(
+    name: 'HON. NIKO JAKE P. BALBERAN',
+    position: 'Barangay Kagawad',
+    committee: 'Chairman, Committee on Infra & Public Works',
+    assetPath: 'assets/officials/niko-balberan.jpg',
+    badge: 'Kagawad #3',
+  ),
+  _ChartOfficial(
+    name: 'HON. HILARIO C. HIPOLITO, JR.',
+    position: 'Barangay Kagawad',
+    committee: 'Chairman, Committee on Women & Family, GAD',
+    assetPath: 'assets/officials/hilario-hipolito.jpg',
+    badge: 'Kagawad #4',
+  ),
+  _ChartOfficial(
+    name: 'HON. ENRIQUE G. MADRIAGA',
+    position: 'Barangay Kagawad',
+    committee: 'Chairman, Committee on Finance and Appropriations, Agriculture, Environment & BADAC / Dangerous Drug',
+    assetPath: 'assets/officials/enrique-madriaga.jpg',
+    badge: 'Kagawad #5',
+  ),
+  _ChartOfficial(
+    name: 'HON. ROBERT C. DE LEON',
+    position: 'Barangay Kagawad',
+    committee: 'Chairman, Committee on Peace and Order, Blue Ribbon, Ethics, Rules, Laws & Good Governance',
+    assetPath: 'assets/officials/robert-de-leon.jpg',
+    badge: 'Kagawad #6',
+  ),
+  _ChartOfficial(
+    name: 'HON. KEAT JOHN C. GALANG',
+    position: 'Barangay Kagawad',
+    committee: 'Chairman, Committee on Cooperative and Livelihood',
+    assetPath: 'assets/officials/keat-galang.jpg',
+    badge: 'Kagawad #7',
+  ),
+];
+
+const List<(String, String)> _specialBodies = [
+  ('BDC', 'Barangay Development Council'),
+  ('BDRRM', 'Barangay Disaster Risk Reduction & Mgmt'),
+  ('BCPC', 'Barangay Council for Protection of Children'),
+  ('BNC', 'Barangay Nutrition Committee'),
+  ('BPOC', 'Barangay Peace & Order Committee'),
+  ('BADAC', 'Barangay Anti-Drug Abuse Council'),
+  ('BPFC', 'Barangay Physical Fitness & Sports'),
+  ('BESWC', 'Barangay Ecological Solid Waste'),
+  ('BARANGAY TANOD', 'Community Peacekeeping Patrol'),
+  ('BHERT', 'Barangay Health Emergency Response'),
+];
+
 class OfficialsSection extends StatelessWidget {
   final List<Official> officials;
   final Color? background;
   const OfficialsSection({super.key, required this.officials, this.background});
 
+  Widget _portrait(_ChartOfficial o, double w, double h, Color primary) {
+    Widget fallback() => Container(
+          width: w,
+          height: h,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: LinearGradient(
+              colors: [
+                Color.alphaBlend(primary.withValues(alpha: 0.12), Colors.white),
+                Color.alphaBlend(primary.withValues(alpha: 0.24), Colors.white),
+              ],
+            ),
+          ),
+          child: Text(
+            o.initials,
+            style: TextStyle(color: shadeColor(primary, -0.2), fontSize: w * 0.28, fontWeight: FontWeight.w800),
+          ),
+        );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Image.asset(
+        o.assetPath,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+        errorBuilder: (_, __, ___) => fallback(),
+      ),
+    );
+  }
+
+  void _openOfficialDialog(BuildContext context, _ChartOfficial o, Color primary) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+                _portrait(o, 112, 126, primary),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    o.position.toUpperCase(),
+                    style: TextStyle(color: primary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(o.name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Text(o.committee, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, height: 1.4)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _horizontalOfficialCard(BuildContext context, _ChartOfficial o, Color primary) {
+    return HoverPop(
+      hoverScale: 1.02,
+      child: InkWell(
+        onTap: () => _openOfficialDialog(context, o, primary),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
+          ),
+          child: Row(
+            children: [
+              _portrait(o, 68, 76, primary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (o.badge != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        margin: const EdgeInsets.only(bottom: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          o.badge!.toUpperCase(),
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF475569)),
+                        ),
+                      ),
+                    Text(o.name, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 2),
+                    Text(o.position, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primary)),
+                    const SizedBox(height: 4),
+                    Text(
+                      o.committee,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.3),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (officials.isEmpty) return const SizedBox.shrink();
     final primary = brandPrimary(context);
-    List<Official> of(String g) => officials.where((o) => o.group == g).toList();
-    final captains = of('captain');
+    final isFil = context.watch<LocaleProvider>().isFilipino;
 
     Widget heading(String text) => Padding(
-          padding: const EdgeInsets.only(top: 30, bottom: 16),
+          padding: const EdgeInsets.only(top: 28, bottom: 14),
           child: Row(children: [
-            Text(text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(width: 12),
-            Expanded(child: Divider(color: primary.withValues(alpha: 0.3))),
+            Expanded(child: Divider(color: primary.withValues(alpha: 0.25))),
           ]),
         );
 
-    Widget grid(List<Official> list) => Wrap(
-          spacing: 18,
-          runSpacing: 18,
-          children: [
-            for (final o in list)
-              SizedBox(
-                width: 190,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 20, 12, 18),
-                    child: Column(
-                      children: [
-                        OfficialAvatar(official: o, size: 84),
-                        const SizedBox(height: 12),
-                        Text(officialDisplayName(o), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text(o.position,
-                            textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-
     return SectionFrame(
-      title: 'Barangay Officials',
-      subtitle: 'Ang inyong mga lingkod-bayan',
+      title: 'Sangguniang Barangay Organizational Structure',
+      subtitle: isFil
+          ? 'Opisyal na direktoryo at tsart ng Pamahalaang Barangay ng Rosario (i-tap para sa detalye)'
+          : 'Official Sangguniang Barangay of Rosario directory & committees (tap any card for details)',
       background: background,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (captains.isNotEmpty)
-            Center(
-              child: Wrap(
-                spacing: 20,
-                runSpacing: 20,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final o in captains)
+          // Top Node: General Assembly
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 420),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF1E293B), width: 2),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'GENERAL ASSEMBLY',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A), letterSpacing: 0.6),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isFil ? 'Katipunan ng Barangay Rosario' : 'Highest Legislative Community Assembly',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          Container(width: 2, height: 22, color: Colors.grey.shade400),
+
+          // Tier 1: Punong Barangay (Center) + Secretary & Treasurer
+          HoverPop(
+            hoverScale: 1.02,
+            child: InkWell(
+              onTap: () => _openOfficialDialog(context, _punongBarangay, primary),
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                width: 300,
+                padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.white,
+                  border: Border.all(color: primary, width: 2),
+                  boxShadow: [BoxShadow(color: primary.withValues(alpha: 0.14), blurRadius: 20, offset: const Offset(0, 8))],
+                ),
+                child: Column(
+                  children: [
                     Container(
-                      width: 260,
-                      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color.alphaBlend(const Color(0xFFF1FE0A).withValues(alpha: 0.22), Colors.white),
-                            Color.alphaBlend(primary.withValues(alpha: 0.10), Colors.white),
-                          ],
-                        ),
-                        border: Border.all(color: primary.withValues(alpha: 0.14)),
-                        boxShadow: [BoxShadow(color: primary.withValues(alpha: 0.12), blurRadius: 22, offset: const Offset(0, 10))],
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(999)),
+                      child: const Text(
+                        'PUNONG BARANGAY',
+                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
                       ),
-                      child: Column(
+                    ),
+                    const SizedBox(height: 14),
+                    _portrait(_punongBarangay, 108, 120, primary),
+                    const SizedBox(height: 12),
+                    Text(_punongBarangay.name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 4),
+                    Text(
+                      _punongBarangay.committee,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final twoCol = constraints.maxWidth >= 680;
+              final itemW = twoCol ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 14,
+                children: [
+                  SizedBox(width: itemW, child: _horizontalOfficialCard(context, _executiveSecretary, primary)),
+                  SizedBox(width: itemW, child: _horizontalOfficialCard(context, _executiveTreasurer, primary)),
+                ],
+              );
+            },
+          ),
+
+          // Tier 2: Lupon Tagapamayapa & SK Chairman
+          heading(isFil ? 'Lupon Tagapamayapa & Sangguniang Kabataan' : 'Lupon Tagapamayapa & SK Council'),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final twoCol = constraints.maxWidth >= 680;
+              final itemW = twoCol ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 14,
+                children: [
+                  SizedBox(
+                    width: itemW,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFFCD34D), width: 1.5),
+                      ),
+                      child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(4),
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
-                                shape: BoxShape.circle, color: Colors.white, border: Border.all(color: primary.withValues(alpha: 0.18))),
-                            child: OfficialAvatar(official: o, size: 120),
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.balance_rounded, color: Color(0xFFB45309)),
                           ),
-                          const SizedBox(height: 14),
-                          Text(officialDisplayName(o),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Color(0xFF1F1416), fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          Text(o.position.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: shadeColor(primary, -0.22), fontSize: 12, letterSpacing: 1.4, fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('LUPON TAGAPAMAYAPA', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900)),
+                                const SizedBox(height: 3),
+                                Text(
+                                  isFil
+                                      ? 'Lupong tagapag-ayos ng sigalot sa Katarungang Pambarangay.'
+                                      : 'Katarungang Pambarangay mediation & conciliation council.',
+                                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700, height: 1.35),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: itemW, child: _horizontalOfficialCard(context, _skChairman, primary)),
+                ],
+              );
+            },
+          ),
+
+          // Tier 3: Seven Barangay Kagawads (Formal Chart Left-to-Right Order)
+          heading(isFil ? 'Sangguniang Barangay Kagawads (1-7)' : 'Sangguniang Barangay Kagawads & Committees'),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth >= 960
+                  ? 4
+                  : constraints.maxWidth >= 640
+                      ? 2
+                      : 1;
+              final cardW = (constraints.maxWidth - (cols - 1) * 14) / cols;
+              return Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: [
+                  for (final kag in _kagawadsList)
+                    SizedBox(
+                      width: cardW,
+                      child: HoverPop(
+                        hoverScale: 1.02,
+                        child: InkWell(
+                          onTap: () => _openOfficialDialog(context, kag, primary),
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  kag.badge?.toUpperCase() ?? 'KAGAWAD',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.grey.shade500, letterSpacing: 0.8),
+                                ),
+                                const SizedBox(height: 8),
+                                _portrait(kag, 84, 96, primary),
+                                const SizedBox(height: 10),
+                                Text(kag.name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
+                                const SizedBox(height: 2),
+                                Text(kag.position, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
+                                const SizedBox(height: 8),
+                                Text(
+                                  kag.committee,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+
+          // Tier 4: Special Bodies & Community Councils
+          heading(isFil ? 'Mga Espesyal na Lupon at Sangay' : 'Barangay-Based Institutions & Special Councils'),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth >= 900
+                  ? 5
+                  : constraints.maxWidth >= 540
+                      ? 2
+                      : 1;
+              final boxW = (constraints.maxWidth - (cols - 1) * 10) / cols;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final b in _specialBodies)
+                    Container(
+                      width: boxW,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(b.$1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: primary)),
+                          const SizedBox(height: 2),
+                          Text(b.$2, style: TextStyle(fontSize: 11, color: Colors.grey.shade700, height: 1.25)),
                         ],
                       ),
                     ),
                 ],
-              ),
-            ),
-          if (of('council').isNotEmpty) ...[heading('Sangguniang Barangay'), grid(of('council'))],
-          if (of('sk').isNotEmpty) ...[heading('Sangguniang Kabataan'), grid(of('sk'))],
-          if (of('staff').isNotEmpty) ...[heading('Barangay Staff'), grid(of('staff'))],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -366,10 +803,11 @@ class AnnouncementsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = brandPrimary(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final list = items.take(6).toList();
     return SectionFrame(
       title: 'Announcements',
-      subtitle: 'Mga balita at abiso mula sa barangay',
+      subtitle: isFil ? 'Mga balita at abiso mula sa barangay' : 'News and public notices from the barangay',
       background: primary.withValues(alpha: 0.04),
       child: list.isEmpty
           ? Card(
@@ -378,7 +816,11 @@ class AnnouncementsSection extends StatelessWidget {
                 child: Row(children: [
                   Icon(Icons.campaign_outlined, color: primary),
                   const SizedBox(width: 12),
-                  const Expanded(child: Text('Walang bagong announcement sa ngayon. Bumalik muli mamaya.')),
+                  Expanded(
+                    child: Text(isFil
+                        ? 'Walang bagong announcement sa ngayon. Bumalik muli mamaya.'
+                        : 'No new announcements right now. Check back soon.'),
+                  ),
                 ]),
               ),
             )
@@ -709,15 +1151,18 @@ class AlbumSection extends StatelessWidget {
     if (all.isEmpty && !showEmptyNote) return const SizedBox.shrink();
     final urls = limit == null ? all : all.take(limit!).toList();
     final primary = brand.primary;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     return SectionFrame(
       title: 'Album',
-      subtitle: 'Mga larawan ng ${brand.name}',
+      subtitle: isFil ? 'Mga larawan ng ${brand.name}' : 'Photos of ${brand.name}',
       child: all.isEmpty
           ? Container(
               width: double.infinity,
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(color: primary.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(18)),
-              child: const Text('Wala pang larawan sa album. Idadagdag ito ng barangay.'),
+              child: Text(isFil
+                  ? 'Wala pang larawan sa album. Idadagdag ito ng barangay.'
+                  : 'No photos in the album yet. They will be added by the barangay.'),
             )
           : Column(
               children: [

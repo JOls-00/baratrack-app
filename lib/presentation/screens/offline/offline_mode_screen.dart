@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../screens/complaints/file_complaint_screen.dart';
 import 'admin_offline_home.dart';
 import 'admin_pin_dialog.dart';
@@ -118,6 +119,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
   Widget build(BuildContext context) {
     final brand = context.brand;
     final auth = context.watch<AuthProvider>();
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final user = auth.user;
     final isAdminOrStaff = user?.role == 'Admin' || user?.role == 'Staff';
 
@@ -128,7 +130,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Bumalik sa Online Mode',
+          tooltip: isFil ? 'Bumalik sa Online Mode' : 'Back to Online Mode',
           onPressed: () {
             AppRouter.exitOfflineMode();
           },
@@ -150,7 +152,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reload cached data',
+            tooltip: isFil ? 'I-reload ang data' : 'Reload cached data',
             onPressed: _loadCachedData,
           ),
         ],
@@ -162,11 +164,11 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
           tabs: [
             Tab(
               icon: const Icon(Icons.folder_shared_outlined, size: 20),
-              text: 'Mga Kaso (${_cachedCases.length})',
+              text: isFil ? 'Mga Kaso (${_cachedCases.length})' : 'Cases (${_cachedCases.length})',
             ),
             Tab(
               icon: const Icon(Icons.event_note_outlined, size: 20),
-              text: 'Pagdinig (${_cachedHearings.length})',
+              text: isFil ? 'Pagdinig (${_cachedHearings.length})' : 'Hearings (${_cachedHearings.length})',
             ),
             const Tab(
               icon: Icon(Icons.contact_phone_outlined, size: 20),
@@ -197,7 +199,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Offline Mode Naka-aktibo',
+                        isFil ? 'Offline Mode Naka-aktibo' : 'Offline Mode Active',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.brown.shade900,
@@ -205,7 +207,9 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
                         ),
                       ),
                       Text(
-                        'Ipinapakita ang naka-save na datos habang walang internet signal.',
+                        isFil
+                            ? 'Ipinapakita ang naka-save na datos habang walang internet signal.'
+                            : 'Showing cached records while there is no internet connection.',
                         style: TextStyle(color: Colors.amber.shade900, fontSize: 11),
                       ),
                     ],
@@ -220,7 +224,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
                     }
                   },
                   icon: const Icon(Icons.sync_rounded, size: 16),
-                  label: const Text('Subukan Online', style: TextStyle(fontSize: 12)),
+                  label: Text(isFil ? 'Subukan Online' : 'Try Online', style: const TextStyle(fontSize: 12)),
                   style: TextButton.styleFrom(foregroundColor: brand),
                 ),
               ],
@@ -239,7 +243,9 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
               ),
               icon: const Icon(Icons.edit_note_rounded, size: 22),
               label: Text(
-                _hasDraft ? 'Ipagpatuloy ang Naka-save na Draft ng Reklamo' : 'Gumawa ng Reklamo (Offline Draft)',
+                _hasDraft
+                    ? (isFil ? 'Ipagpatuloy ang Naka-save na Draft ng Reklamo' : 'Continue Saved Complaint Draft')
+                    : (isFil ? 'Gumawa ng Reklamo (Offline Draft)' : 'Draft a Complaint Offline'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               onPressed: () async {
@@ -260,10 +266,10 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
                     controller: _tabController,
                     children: [
                       // TAB 1: Cached Cases
-                      _buildCasesView(),
+                      _buildCasesView(isFil),
 
                       // TAB 2: Cached Hearings
-                      _buildHearingsView(),
+                      _buildHearingsView(isFil),
 
                       // TAB 3: Emergency Contacts
                       _buildEmergencyContactsView(),
@@ -275,7 +281,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
     );
   }
 
-  Widget _buildCasesView() {
+  Widget _buildCasesView(bool isFil) {
     if (_cachedCases.isEmpty) {
       return Center(
         child: Padding(
@@ -285,14 +291,16 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
             children: [
               Icon(Icons.folder_off_outlined, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              const Text(
-                'Walang Naka-save na Kaso sa Telepono',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                isFil ? 'Walang Naka-save na Kaso sa Telepono' : 'No Cached Cases on Device',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Kapag ikaw ay online at binuksan ang iyong mga reklamo, awtomatiko itong mase-save para matingnan mo kahit walang signal.',
+                isFil
+                    ? 'Kapag ikaw ay online at binuksan ang iyong mga reklamo, awtomatiko itong mase-save para matingnan mo kahit walang signal.'
+                    : 'Once you view your complaints while online, they are automatically cached here for offline viewing.',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
@@ -308,9 +316,9 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = _cachedCases[index];
-        final title = item['case_title'] ?? item['title'] ?? 'Walang Pamagat';
+        final title = item['case_title'] ?? item['title'] ?? (isFil ? 'Walang Pamagat' : 'Untitled Case');
         final caseNo = item['case_number'] ?? item['tracking_code'] ?? 'N/A';
-        final status = item['status'] ?? 'Naka-pending';
+        final status = item['status'] ?? 'Pending';
         final date = item['created_at'] ?? item['date'] ?? '';
 
         return Card(
@@ -364,7 +372,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
     );
   }
 
-  Widget _buildHearingsView() {
+  Widget _buildHearingsView(bool isFil) {
     if (_cachedHearings.isEmpty) {
       return Center(
         child: Padding(
@@ -374,14 +382,16 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
             children: [
               Icon(Icons.event_busy_outlined, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              const Text(
-                'Walang Naka-save na Iskedyul ng Pagdinig',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                isFil ? 'Walang Naka-save na Iskedyul ng Pagdinig' : 'No Cached Hearing Schedules',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Awtomatikong magse-save dito ang iyong mga susunod na pagdinig kapag nakakonekta sa internet.',
+                isFil
+                    ? 'Awtomatikong magse-save dito ang iyong mga susunod na pagdinig kapag nakakonekta sa internet.'
+                    : 'Your upcoming hearing schedules are automatically saved here whenever you are online.',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
@@ -397,8 +407,8 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = _cachedHearings[index];
-        final hearingDate = item['hearing_date'] ?? item['scheduled_at'] ?? 'Walang Petsa';
-        final caseTitle = item['case_title'] ?? 'Pagdinig';
+        final hearingDate = item['hearing_date'] ?? item['scheduled_at'] ?? (isFil ? 'Walang Petsa' : 'No Date');
+        final caseTitle = item['case_title'] ?? (isFil ? 'Pagdinig' : 'Hearing');
         final venue = item['venue'] ?? 'Barangay Rosario Hall';
 
         return Card(
@@ -410,7 +420,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
               child: Icon(Icons.gavel_rounded, color: context.brand),
             ),
             title: Text(caseTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Petsa: $hearingDate\nLugar: $venue'),
+            subtitle: Text('${isFil ? "Petsa" : "Date"}: $hearingDate\n${isFil ? "Lugar" : "Venue"}: $venue'),
             isThreeLine: true,
           ),
         );

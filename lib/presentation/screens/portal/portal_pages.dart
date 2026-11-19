@@ -7,6 +7,7 @@ import '../auth/login_page.dart';
 import '../auth/login_screen.dart';
 import '../../providers/branding_provider.dart';
 import '../../providers/portal_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'faq_screen.dart';
 import 'landing_screen.dart';
 import 'landing_sections.dart';
@@ -64,22 +65,7 @@ class OfficialsPage extends StatelessWidget {
     final officials = context.watch<BrandingProvider>().officials;
     return PortalShell(
       current: 'officials',
-      child: officials.isEmpty
-          ? SectionFrame(
-              title: 'Barangay Officials',
-              subtitle: 'Ang inyong mga lingkod-bayan',
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(children: [
-                    Icon(Icons.groups_outlined, color: brandPrimary(context)),
-                    const SizedBox(width: 12),
-                    const Expanded(child: Text('Ilalagay ang listahan ng mga opisyal ng barangay dito sa lalong madaling panahon.')),
-                  ]),
-                ),
-              ),
-            )
-          : OfficialsSection(officials: officials),
+      child: OfficialsSection(officials: officials),
     );
   }
 }
@@ -136,6 +122,7 @@ class TrackPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     if (!kIsWeb) {
       return Scaffold(
         appBar: AppBar(
@@ -154,33 +141,37 @@ class TrackPage extends StatelessWidget {
             },
           ),
         ),
-        body: const SingleChildScrollView(
-          padding: EdgeInsets.all(16),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Track your application',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.darkNavy),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
-                'Alamin ang status ng iyong reklamo gamit ang Reference Number. Hindi mo kailangang mag-login.',
-                style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+                isFil
+                    ? 'Alamin ang status ng iyong reklamo gamit ang Reference Number. Hindi mo kailangang mag-login.'
+                    : 'Check the status of your complaint using your Reference Number. No login required.',
+                style: const TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
               ),
-              SizedBox(height: 16),
-              TrackPanel(),
+              const SizedBox(height: 16),
+              const TrackPanel(),
             ],
           ),
         ),
       );
     }
-    return const PortalShell(
+    return PortalShell(
       current: 'track',
       child: SectionFrame(
         title: 'Track your application',
-        subtitle: 'Alamin ang status ng iyong reklamo o kaso. Hindi mo kailangang mag-login.',
-        child: TrackPanel(),
+        subtitle: isFil
+            ? 'Alamin ang status ng iyong reklamo o kaso. Hindi mo kailangang mag-login.'
+            : 'Check the status of your complaint or case. No login required.',
+        child: const TrackPanel(),
       ),
     );
   }

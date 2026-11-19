@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../config/app_theme.dart';
+import '../../providers/locale_provider.dart';
 
 /// Screen displayed after a resident successfully submits a complaint (Task 32).
 /// Displays:
@@ -40,8 +42,9 @@ class ComplaintSubmittedScreen extends StatelessWidget {
     return 'ROS-$year-$idStr';
   }
 
-  String get _formattedSummary {
-    return '''
+  String _formattedSummary(bool isFil) {
+    if (isFil) {
+      return '''
 BARANGAY ROSARIO BLOTTER & COMPLAINT SYSTEM
 ========================================
 Tracking Reference: $_referenceCode
@@ -54,9 +57,24 @@ Katayuan: Naihain / For Review ng Lupon
 
 Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
 ''';
+    } else {
+      return '''
+BARANGAY ROSARIO BLOTTER & COMPLAINT SYSTEM
+========================================
+Tracking Reference: $_referenceCode
+Category: $category
+Respondent: $respondentName
+Date & Time: $incidentDate, $incidentTime
+Location: $location
+Attached Evidence: $evidenceCount file(s)
+Status: Submitted / Under Lupon Review
+
+Please keep this reference code to track the status of your complaint.
+''';
+    }
   }
 
-  void _copyReference(BuildContext context) {
+  void _copyReference(BuildContext context, bool isFil) {
     Clipboard.setData(ClipboardData(text: _referenceCode));
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -65,7 +83,11 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
           children: [
             const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
             const SizedBox(width: AppTheme.space8),
-            Text('Nakopya ang Reference Code: $_referenceCode'),
+            Text(
+              isFil
+                  ? 'Nakopya ang Reference Code: $_referenceCode'
+                  : 'Copied Reference Code: $_referenceCode',
+            ),
           ],
         ),
         backgroundColor: AppTheme.success,
@@ -74,26 +96,28 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
     );
   }
 
-  void _shareSummary(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: _formattedSummary));
+  void _shareSummary(BuildContext context, bool isFil) {
+    Clipboard.setData(ClipboardData(text: _formattedSummary(isFil)));
     HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
-            Icon(Icons.content_paste_rounded, color: Colors.white, size: 20),
-            SizedBox(width: AppTheme.space8),
+            const Icon(Icons.content_paste_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: AppTheme.space8),
             Expanded(
               child: Text(
-                'Nakopya ang buod sa clipboard! Maaari mo na itong i-paste sa SMS o chat.',
-                style: TextStyle(fontSize: 13),
+                isFil
+                    ? 'Nakopya ang buod sa clipboard! Maaari mo na itong i-paste sa SMS o chat.'
+                    : 'Summary copied to clipboard! You can now paste it into SMS or chat.',
+                style: const TextStyle(fontSize: 13),
               ),
             ),
           ],
         ),
         backgroundColor: AppTheme.brand700,
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 4),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -103,6 +127,7 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final sideMargin = AppTheme.sideMargin(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
 
     return PopScope(
       canPop: false,
@@ -115,7 +140,7 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
         backgroundColor: isDark ? AppTheme.scaffoldDark : AppTheme.scaffoldLight,
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text('Katibayan ng Paghain'),
+          title: Text(isFil ? 'Katibayan ng Paghain' : 'Filing Confirmation'),
           centerTitle: true,
           elevation: 0,
         ),
@@ -140,7 +165,7 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                 ),
                 const SizedBox(height: AppTheme.space16),
                 Text(
-                  'Matagumpay na Naihain!',
+                  isFil ? 'Matagumpay na Naihain!' : 'Successfully Filed!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
@@ -150,7 +175,9 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                 ),
                 const SizedBox(height: AppTheme.space4),
                 Text(
-                  'Opisyal nang naitala ang iyong reklamo sa Barangay Rosario.',
+                  isFil
+                      ? 'Opisyal nang naitala ang iyong reklamo sa Barangay Rosario.'
+                      : 'Your complaint has been officially recorded in Barangay Rosario.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -207,9 +234,12 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                             child: SizedBox(
                               height: 44,
                               child: OutlinedButton.icon(
-                                onPressed: () => _copyReference(context),
+                                onPressed: () => _copyReference(context, isFil),
                                 icon: const Icon(Icons.copy_rounded, size: 16),
-                                label: const Text('Kopyahin', style: TextStyle(fontWeight: FontWeight.bold)),
+                                label: Text(
+                                  isFil ? 'Kopyahin' : 'Copy',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500,
                                   side: BorderSide(
@@ -225,9 +255,12 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                             child: SizedBox(
                               height: 44,
                               child: ElevatedButton.icon(
-                                onPressed: () => _shareSummary(context),
+                                onPressed: () => _shareSummary(context, isFil),
                                 icon: const Icon(Icons.share_rounded, size: 16),
-                                label: const Text('Ibahagi', style: TextStyle(fontWeight: FontWeight.bold)),
+                                label: Text(
+                                  isFil ? 'Ibahagi' : 'Share',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.brand500,
                                   foregroundColor: Colors.white,
@@ -266,7 +299,7 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                           ),
                           const SizedBox(width: AppTheme.space8),
                           Text(
-                            'Buod ng Reklamo',
+                            isFil ? 'Buod ng Reklamo' : 'Complaint Summary',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -276,16 +309,20 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                         ],
                       ),
                       const Divider(height: 24),
-                      _summaryRow('Kategorya:', category, isDark),
+                      _summaryRow(isFil ? 'Kategorya:' : 'Category:', category, isDark),
                       const SizedBox(height: AppTheme.space8),
-                      _summaryRow('Inirereklamo:', respondentName, isDark),
+                      _summaryRow(isFil ? 'Inirereklamo:' : 'Respondent:', respondentName, isDark),
                       const SizedBox(height: AppTheme.space8),
-                      _summaryRow('Petsa at Oras:', '$incidentDate, $incidentTime', isDark),
+                      _summaryRow(isFil ? 'Petsa at Oras:' : 'Date & Time:', '$incidentDate, $incidentTime', isDark),
                       const SizedBox(height: AppTheme.space8),
-                      _summaryRow('Lugar:', location, isDark),
+                      _summaryRow(isFil ? 'Lugar:' : 'Location:', location, isDark),
                       if (evidenceCount > 0) ...[
                         const SizedBox(height: AppTheme.space8),
-                        _summaryRow('Ebidensya:', '$evidenceCount file(s) kalakip', isDark),
+                        _summaryRow(
+                          isFil ? 'Ebidensya:' : 'Evidence:',
+                          isFil ? '$evidenceCount file(s) kalakip' : '$evidenceCount file(s) attached',
+                          isDark,
+                        ),
                       ],
                     ],
                   ),
@@ -313,7 +350,7 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                           const Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.warning),
                           const SizedBox(width: AppTheme.space8),
                           Text(
-                            'Ano ang susunod na hakbang?',
+                            isFil ? 'Ano ang susunod na hakbang?' : 'What happens next?',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -324,9 +361,13 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                       ),
                       const SizedBox(height: AppTheme.space8),
                       Text(
-                        '1. Sinusuri ng Barangay Desk Officer ang mga detalye at ebidensya sa loob ng 24–48 oras.\n'
-                        '2. Ipapadala ang abiso sa inyo at sa inirereklamo para sa mediation o pagdinig sa Lupon Tagapamayapa.\n'
-                        '3. Maaari mong subaybayan ang galaw ng kaso sa tab na "Reklamo".',
+                        isFil
+                            ? '1. Sinusuri ng Barangay Desk Officer ang mga detalye at ebidensya sa loob ng 24–48 oras.\n'
+                              '2. Ipapadala ang abiso sa inyo at sa inirereklamo para sa mediation o pagdinig sa Lupon Tagapamayapa.\n'
+                              '3. Maaari mong subaybayan ang galaw ng kaso sa tab na "Reklamo".'
+                            : '1. The Barangay Desk Officer reviews details and evidence within 24–48 hours.\n'
+                              '2. Notices will be issued to both parties for mediation before the Lupon Tagapamayapa.\n'
+                              '3. You can track this case anytime under the "Complaints" tab.',
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.5,
@@ -350,9 +391,9 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text(
-                      'TINGNAN ANG AKING MGA REKLAMO',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                    child: Text(
+                      isFil ? 'TINGNAN ANG AKING MGA REKLAMO' : 'VIEW MY COMPLAINTS',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
                     ),
                   ),
                 ),
@@ -364,7 +405,7 @@ Mangyaring itabi ang reference code na ito para sa pag-track ng inyong reklamo.
                       context.go('/');
                     },
                     child: Text(
-                      'Bumalik sa Home',
+                      isFil ? 'Bumalik sa Home' : 'Back to Home',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../providers/case_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/empty_state_view.dart';
@@ -93,11 +94,12 @@ class _CaseListScreenState extends State<CaseListScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final caseProvider = context.watch<CaseProvider>();
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final displayCases = _filterAndSortCases(caseProvider.cases);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mga Kaso at Blotter (Case List)'),
+        title: Text(isFil ? 'Mga Kaso at Blotter' : 'Cases & Blotter (Case List)'),
         elevation: 0,
       ),
       body: Column(
@@ -116,7 +118,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Maghanap ng Case #, pangalan, o detalye...',
+                    hintText: isFil ? 'Maghanap ng Case #, pangalan, o detalye...' : 'Search by Case #, name, or details...',
                     hintStyle: TextStyle(fontSize: 13, color: isDark ? AppTheme.textHintDark : AppTheme.textHintLight),
                     prefixIcon: const Icon(Icons.search, size: 20),
                     suffixIcon: _searchController.text.isNotEmpty
@@ -251,9 +253,9 @@ class _CaseListScreenState extends State<CaseListScreen> {
                     child: displayCases.isEmpty
                         ? EmptyStateView(
                             icon: Icons.folder_open_rounded,
-                            title: 'Walang nahanap na kaso',
-                            message: 'Subukang baguhin ang mga filter chip o search query.',
-                            actionLabel: 'I-reset ang Filter',
+                            title: isFil ? 'Walang nahanap na kaso' : 'No cases found',
+                            message: isFil ? 'Subukang baguhin ang mga filter chip o search query.' : 'Try adjusting your filter chips or search query.',
+                            actionLabel: isFil ? 'I-reset ang Filter' : 'Reset Filters',
                             onAction: () {
                               setState(() {
                                 _searchController.clear();
@@ -282,7 +284,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                                           children: [
                                             Expanded(
                                               child: Text(
-                                                'Kaso #${item.caseNumber}',
+                                                '${isFil ? "Kaso" : "Case"} #${item.caseNumber}',
                                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                               ),
                                             ),
@@ -291,7 +293,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          item.complaint?.typeName ?? 'Reklamo',
+                                          item.complaint?.typeName ?? (isFil ? 'Reklamo' : 'Complaint'),
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
@@ -300,7 +302,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          item.complaint?.details ?? 'Walang nakalagay na detalye',
+                                          item.complaint?.details ?? (isFil ? 'Walang nakalagay na detalye' : 'No details provided'),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(

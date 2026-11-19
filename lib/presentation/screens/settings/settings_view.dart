@@ -53,6 +53,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _pickImage() async {
+    final isFil = context.read<LocaleProvider>().isFilipino;
     final ImageSource? source = await showModalBottomSheet<ImageSource>(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -62,14 +63,17 @@ class _SettingsViewState extends State<SettingsView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Palitan ang Profile Photo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                isFil ? 'Palitan ang Profile Photo' : 'Change Profile Photo',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 16),
               ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                   child: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
                 ),
-                title: const Text('Kumuha gamit ang Camera'),
+                title: Text(isFil ? 'Kumuha gamit ang Camera' : 'Take Photo with Camera'),
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
               ListTile(
@@ -77,7 +81,7 @@ class _SettingsViewState extends State<SettingsView> {
                   backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                   child: Icon(Icons.photo_library, color: Theme.of(context).colorScheme.primary),
                 ),
-                title: const Text('Pumili mula sa Gallery'),
+                title: Text(isFil ? 'Pumili mula sa Gallery' : 'Choose from Gallery'),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
               ),
             ],
@@ -100,6 +104,7 @@ class _SettingsViewState extends State<SettingsView> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
       final messenger = ScaffoldMessenger.of(context);
+      final isFil = context.read<LocaleProvider>().isFilipino;
 
       try {
         String? avatarBase64;
@@ -118,8 +123,8 @@ class _SettingsViewState extends State<SettingsView> {
         
         if (mounted) {
           messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Matagumpay na na-update ang profile!'),
+            SnackBar(
+              content: Text(isFil ? 'Matagumpay na na-update ang profile!' : 'Profile updated successfully!'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
             ),
@@ -129,7 +134,7 @@ class _SettingsViewState extends State<SettingsView> {
         if (mounted) {
           messenger.showSnackBar(
             SnackBar(
-              content: Text('Hindi na-update: $e'),
+              content: Text(isFil ? 'Hindi na-update: $e' : 'Update failed: $e'),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
@@ -145,6 +150,8 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeProvider = context.watch<ThemeProvider>();
+    final locale = context.watch<LocaleProvider>();
+    final isFil = locale.isFilipino;
     final narrow = MediaQuery.of(context).size.width < 600;
 
     return Padding(
@@ -153,8 +160,8 @@ class _SettingsViewState extends State<SettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Settings', style: Theme.of(context).textTheme.headlineLarge),
-            const Text('Manage your account, theme, and app preferences.', style: TextStyle(color: AppTheme.textSecondary)),
+            Text(locale.tr('settings_title'), style: Theme.of(context).textTheme.headlineLarge),
+            Text(locale.tr('settings_sub'), style: const TextStyle(color: AppTheme.textSecondary)),
             const SizedBox(height: 32),
             
             // Barangay branding (admins only)
@@ -223,39 +230,75 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 32),
 
             // Language Preference (Task 29)
-            _buildSectionHeader('Wika / Language'),
+            _buildSectionHeader(locale.tr('language_section')),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Piliin ang Wika ng App (App Language)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      isFil ? 'Piliin ang Wika ng App (App Language)' : 'Select App Language',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
-                    const Text('I-toggle ang wika para sa mga tab, button, at abiso.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                    Text(
+                      isFil
+                          ? 'I-toggle ang wika para sa mga tab, button, at abiso.'
+                          : 'Switch language for navigation tabs, forms, buttons, and notifications.',
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                    ),
                     const SizedBox(height: 16),
-                    Consumer<LocaleProvider>(
-                      builder: (context, locale, _) {
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Center(child: Text('Filipino (Tagalog)', style: TextStyle(fontWeight: FontWeight.w600))),
-                                selected: locale.isFilipino,
-                                onSelected: (_) => locale.setLocale(AppStrings.localeFil),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            label: Center(
+                              child: Text(
+                                locale.tr('lang_filipino'),
+                                style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Center(child: Text('English', style: TextStyle(fontWeight: FontWeight.w600))),
-                                selected: !locale.isFilipino,
-                                onSelected: (_) => locale.setLocale(AppStrings.localeEn),
+                            selected: isFil,
+                            onSelected: (_) async {
+                              await locale.setLocale(AppStrings.localeFil);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Pinili ang wikang Filipino (Tagalog).'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ChoiceChip(
+                            label: Center(
+                              child: Text(
+                                locale.tr('lang_english'),
+                                style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
                             ),
-                          ],
-                        );
-                      },
+                            selected: !isFil,
+                            onSelected: (_) async {
+                              await locale.setLocale(AppStrings.localeEn);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('App language switched to English.'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -265,7 +308,7 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 32),
 
             // Walkthrough Guide (Task 38)
-            _buildSectionHeader('App Guide & Onboarding'),
+            _buildSectionHeader(isFil ? 'Gabay sa App' : 'App Guide & Onboarding'),
             Card(
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -277,8 +320,15 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   child: const Icon(Icons.school_outlined, color: AppTheme.brand500, size: 24),
                 ),
-                title: const Text('BaraTrack App Walkthrough', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('Basahing muli ang 3 gabay para sa paghain, pagsubaybay, at offline drafts.'),
+                title: Text(
+                  isFil ? 'Gabay sa Paggamit ng BaraTrack' : 'BaraTrack App Walkthrough',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  isFil
+                      ? 'Basahing muli ang 3 gabay para sa paghain, pagsubaybay, at offline drafts.'
+                      : 'Review the 3-step guide for filing complaints, tracking cases, and offline drafts.',
+                ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
@@ -292,7 +342,7 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 32),
             
             // Profile Section
-            _buildSectionHeader('Account & Profile'),
+            _buildSectionHeader(isFil ? 'Account at Profile' : 'Account & Profile'),
             Card(
               child: Padding(
                 padding: EdgeInsets.all(narrow ? 16.0 : 32.0),
@@ -354,13 +404,19 @@ class _SettingsViewState extends State<SettingsView> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Profile Picture', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                    const Text('PNG o JPG. Max 5MB.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                                    Text(
+                                      isFil ? 'Litrato ng Profile' : 'Profile Picture',
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      isFil ? 'PNG o JPG. Max 5MB.' : 'PNG or JPG. Max 5MB.',
+                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                                    ),
                                     const SizedBox(height: 10),
                                     OutlinedButton.icon(
                                       onPressed: _pickImage,
                                       icon: const Icon(Icons.upload, size: 16),
-                                      label: const Text('Upload New Image'),
+                                      label: Text(isFil ? 'Mag-upload ng Bagong Litrato' : 'Upload New Image'),
                                       style: OutlinedButton.styleFrom(
                                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                       ),

@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import '../../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 
 /// "Continue with Google / Facebook" for residents. Only the providers the server has
 /// set up are shown; if neither is set up, nothing is shown at all.
@@ -52,6 +53,7 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
     }
 
     final auth = context.read<AuthProvider>();
+    final isFil = context.read<LocaleProvider>().isFilipino;
     setState(() {
       _busy = true;
       _error = null;
@@ -66,9 +68,13 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
       if (acc == null) return; // closed by the user
       final a = await acc.authentication;
       final ok = await auth.socialLogin('google', idToken: a.idToken, accessToken: a.accessToken);
-      if (!ok && mounted) setState(() => _error = auth.error ?? 'Hindi nakapag-sign in gamit ang Google.');
+      if (!ok && mounted) {
+        setState(() => _error = auth.error ?? (isFil ? 'Hindi nakapag-sign in gamit ang Google.' : 'Could not sign in with Google.'));
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Hindi nakapag-sign in gamit ang Google. Subukan ulit.');
+      if (mounted) {
+        setState(() => _error = isFil ? 'Hindi nakapag-sign in gamit ang Google. Subukan ulit.' : 'Google sign-in failed. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -89,6 +95,7 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
     }
 
     final auth = context.read<AuthProvider>();
+    final isFil = context.read<LocaleProvider>().isFilipino;
     setState(() {
       _busy = true;
       _error = null;
@@ -105,9 +112,13 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
       final res = await FacebookAuth.instance.login(permissions: const ['email', 'public_profile']);
       if (res.status != LoginStatus.success || res.accessToken == null) return; // cancelled or failed
       final ok = await auth.socialLogin('facebook', accessToken: res.accessToken!.tokenString);
-      if (!ok && mounted) setState(() => _error = auth.error ?? 'Hindi nakapag-sign in gamit ang Facebook.');
+      if (!ok && mounted) {
+        setState(() => _error = auth.error ?? (isFil ? 'Hindi nakapag-sign in gamit ang Facebook.' : 'Could not sign in with Facebook.'));
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Hindi nakapag-sign in gamit ang Facebook. Subukan ulit.');
+      if (mounted) {
+        setState(() => _error = isFil ? 'Hindi nakapag-sign in gamit ang Facebook. Subukan ulit.' : 'Facebook sign-in failed. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -116,6 +127,7 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
 
     Widget button({required Widget icon, required String text, required VoidCallback? onTap}) => SizedBox(
           height: 44,
@@ -187,7 +199,9 @@ class _SocialLoginButtonsState extends State<SocialLoginButtons> {
         ],
         const SizedBox(height: 8),
         Text(
-          'Para sa mga residente lamang. Sa pag-continue, sumasang-ayon ka sa Terms of Use.',
+          isFil
+              ? 'Para sa mga residente lamang. Sa pag-continue, sumasang-ayon ka sa Terms of Use.'
+              : 'For residents only. By continuing, you agree to our Terms of Use.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: isDark ? AppTheme.textHintDark : AppTheme.textHintLight,

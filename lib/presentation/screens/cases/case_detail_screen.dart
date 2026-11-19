@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/case_provider.dart';
-import '../../providers/evidence_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../../data/repositories/evidence_repository.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../config/app_theme.dart';
@@ -75,13 +75,6 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
     // Since AppConstants.baseUrl is "http://127.0.0.1/barangay_api"
     // and the file_path is "uploads/evidence/ev_xxx.png"
     // we should strip everything after the root domain to handle the path correctly.
-    
-    final uri = Uri.parse(AppConstants.baseUrl);
-    final domain = "${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}";
-    
-    // Ensure we join the path correctly. 
-    // Usually backend assets are served from the app root, not the /api subfolder.
-    // However, if your PHP serves it from /barangay_api/uploads, we use that.
     
     final fullUrl = "${AppConstants.baseUrl}/$relativePath";
     
@@ -239,6 +232,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
 
   Widget _buildStatusTimeline(ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final status = _caseDetails?.status ?? 'Pending';
 
     // 0: Filed, 1: Under Review (Pending), 2: Mediation (Under Investigation), 3: Settled/Closed
@@ -252,22 +246,42 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
     }
 
     String nextExplanation;
-    switch (currentStep) {
-      case 1:
-        nextExplanation = 'Susunod: Isasagawa ng Lupon ang paunang pagsusuri ng reklamo at magpapadala ng opisyal na paanyaya/summon para sa mediation.';
-        break;
-      case 2:
-        nextExplanation = 'Susunod: Pagtatagpo ng nagrereklamo at inirereklamo sa Barangay Hall kasama ang Lupon para sa mapayapang pag-aayos (Katarungang Pambarangay).';
-        break;
-      case 3:
-        if (status == 'Closed') {
-          nextExplanation = 'Naisara na ang kasong ito. Maaaring kumuha ng Certificate to File Action kung kinakailangang idulog sa hukuman.';
-        } else {
-          nextExplanation = 'Matagumpay nang naayos ang sigalot at nilagdaan na ang Kasunduan sa Pag-aayos (Amicable Settlement).';
-        }
-        break;
-      default:
-        nextExplanation = 'Kasalukuyang pinoproseso sa Barangay Registry.';
+    if (isFil) {
+      switch (currentStep) {
+        case 1:
+          nextExplanation = 'Susunod: Isasagawa ng Lupon ang paunang pagsusuri ng reklamo at magpapadala ng opisyal na paanyaya/summon para sa mediation.';
+          break;
+        case 2:
+          nextExplanation = 'Susunod: Pagtatagpo ng nagrereklamo at inirereklamo sa Barangay Hall kasama ang Lupon para sa mapayapang pag-aayos (Katarungang Pambarangay).';
+          break;
+        case 3:
+          if (status == 'Closed') {
+            nextExplanation = 'Naisara na ang kasong ito. Maaaring kumuha ng Certificate to File Action kung kinakailangang idulog sa hukuman.';
+          } else {
+            nextExplanation = 'Matagumpay nang naayos ang sigalot at nilagdaan na ang Kasunduan sa Pag-aayos (Amicable Settlement).';
+          }
+          break;
+        default:
+          nextExplanation = 'Kasalukuyang pinoproseso sa Barangay Registry.';
+      }
+    } else {
+      switch (currentStep) {
+        case 1:
+          nextExplanation = 'Next: The Lupon conducts initial complaint assessment and issues official summons for mediation.';
+          break;
+        case 2:
+          nextExplanation = 'Next: Meeting between complainant and respondent at Barangay Hall with the Lupon for peaceful mediation (Katarungang Pambarangay).';
+          break;
+        case 3:
+          if (status == 'Closed') {
+            nextExplanation = 'This case is officially closed. A Certificate to File Action may be requested if court escalation is needed.';
+          } else {
+            nextExplanation = 'Dispute successfully resolved and an Amicable Settlement agreement has been signed.';
+          }
+          break;
+        default:
+          nextExplanation = 'Currently being processed in the Barangay Registry.';
+      }
     }
 
     final steps = [
@@ -294,7 +308,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               Icon(Icons.timeline_rounded, color: activeColor, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Case Status Tracker',
+                isFil ? 'Katayuan ng Kaso' : 'Case Status Tracker',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -365,7 +379,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        steps[i].$1,
+                        isFil ? steps[i].$1 : steps[i].$2,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 11,
@@ -402,7 +416,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Ano ang susunod (What happens next):',
+                        isFil ? 'Ano ang susunod:' : 'What happens next:',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,

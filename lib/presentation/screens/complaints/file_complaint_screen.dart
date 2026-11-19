@@ -12,6 +12,7 @@ import '../../providers/complaint_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/resident_provider.dart';
 import '../../providers/evidence_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../../data/models/resident_model.dart';
 import '../profile/resident_registration_screen.dart';
 import 'complaint_submitted_screen.dart';
@@ -102,11 +103,16 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
   bool _validateNarrative() {
     final text = _narrativeController.text.trim();
+    final isFil = context.read<LocaleProvider>().isFilipino;
     if (text.isEmpty) {
-      setState(() => _narrativeError = 'Kailangan ang salaysay: Ipaliwanag ang nangyaring insidente.');
+      setState(() => _narrativeError = isFil
+          ? 'Kailangan ang salaysay: Ipaliwanag ang nangyaring insidente.'
+          : 'Narrative required: Please explain what happened.');
       return false;
     } else if (text.length < 10) {
-      setState(() => _narrativeError = 'Masyadong maikli: Maglagay ng hindi bababa sa 10 letra para maunawaan ng Lupon (hal. "Nagkaroon ng pagtatalo sa bakod...").');
+      setState(() => _narrativeError = isFil
+          ? 'Masyadong maikli: Maglagay ng hindi bababa sa 10 letra para maunawaan ng Lupon.'
+          : 'Too short: Please provide at least 10 characters so the Lupon can review the case.');
       return false;
     } else {
       if (_narrativeError != null) setState(() => _narrativeError = null);
@@ -116,8 +122,11 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
   bool _validateLocation() {
     final text = _locationController.text.trim();
+    final isFil = context.read<LocaleProvider>().isFilipino;
     if (text.isEmpty) {
-      setState(() => _locationError = 'Kailangan ang lokasyon: Maglagay ng kalye, purok, o palatandaan (hal. "Purok 3, tapat ng kapilya").');
+      setState(() => _locationError = isFil
+          ? 'Kailangan ang lokasyon: Maglagay ng kalye, purok, o palatandaan (hal. "Purok 3, tapat ng kapilya").'
+          : 'Location required: Please specify a street, purok, or landmark (e.g. "Purok 3, near chapel").');
       return false;
     } else {
       if (_locationError != null) setState(() => _locationError = null);
@@ -128,13 +137,18 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   bool _validateRespondent() {
     final authProvider = context.read<AuthProvider>();
     final residentId = authProvider.user?.residentId;
+    final isFil = context.read<LocaleProvider>().isFilipino;
 
     if (!_respondentUnknown && _selectedRespondent == null) {
-      setState(() => _respondentError = 'Pumili ng respondent mula sa listahan o lagyan ng tsek ang "Hindi kilala / Unknown".');
+      setState(() => _respondentError = isFil
+          ? 'Pumili ng respondent mula sa listahan o lagyan ng tsek ang "Hindi kilala / Unknown".'
+          : 'Select a respondent from the list or check "Unknown / Unidentified".');
       return false;
     }
     if (!_respondentUnknown && _selectedRespondent!.id == residentId) {
-      setState(() => _respondentError = 'Hindi mo maaaring ireklamo ang iyong sarili. Pumili ng ibang residente.');
+      setState(() => _respondentError = isFil
+          ? 'Hindi mo maaaring ireklamo ang iyong sarili. Pumili ng ibang residente.'
+          : 'You cannot file a complaint against yourself. Please select another resident.');
       return false;
     }
     if (_respondentError != null) setState(() => _respondentError = null);
@@ -447,25 +461,32 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   }
 
   void _showRegistrationPrompt() {
+    final isFil = context.read<LocaleProvider>().isFilipino;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext ctx) {
         return AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.badge_outlined, color: AppTheme.brand500),
-              SizedBox(width: 8),
-              Expanded(child: Text('Resident Profile Required')),
+              const Icon(Icons.badge_outlined, color: AppTheme.brand500),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isFil ? 'Kailangan ang Resident Profile' : 'Resident Profile Required',
+                ),
+              ),
             ],
           ),
-          content: const Text(
-            'Bago maghain ng reklamo, kailangan mo munang i-setup ang iyong Resident Profile para sa beripikasyon ng Barangay Rosario.',
+          content: Text(
+            isFil
+                ? 'Bago maghain ng reklamo, kailangan mo munang i-setup ang iyong Resident Profile para sa beripikasyon ng Barangay Rosario.'
+                : 'Before filing a complaint, please set up your Resident Profile for verification by Barangay Rosario.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Kanselahin'),
+              child: Text(isFil ? 'Kanselahin' : 'Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -474,7 +495,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                   MaterialPageRoute(builder: (_) => const ResidentRegistrationScreen()),
                 );
               },
-              child: const Text('I-setup ang Profile'),
+              child: Text(isFil ? 'I-setup ang Profile' : 'Setup Profile'),
             ),
           ],
         );
@@ -486,24 +507,35 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
 
-    final stepTitles = ['Who', 'What happened', 'Where', 'Evidence', 'Review'];
-    final stepSubtitles = [
-      'Sino ang sangkot sa insidente?',
-      'Ano ang nangyari at kailan?',
-      'Saan naganap ang insidente?',
-      'Mag-attach ng mga litrato o dokumento (Opsiyonal)',
-      'Suriin ang lahat ng detalye bago i-submit',
-    ];
+    final stepTitles = isFil
+        ? ['Sino', 'Ano ang nangyari', 'Saan', 'Ebidensya', 'Pagsusuri']
+        : ['Who', 'What happened', 'Where', 'Evidence', 'Review'];
+    final stepSubtitles = isFil
+        ? [
+            'Sino ang sangkot sa insidente?',
+            'Ano ang nangyari at kailan?',
+            'Saan naganap ang insidente?',
+            'Mag-attach ng mga litrato o dokumento (Opsiyonal)',
+            'Suriin ang lahat ng detalye bago i-submit',
+          ]
+        : [
+            'Who is involved in the incident?',
+            'What happened and when?',
+            'Where did the incident occur?',
+            'Attach photos or documents (Optional)',
+            'Review all details before submitting',
+          ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('File Complaint'),
+        title: Text(isFil ? 'Maghain ng Reklamo' : 'File Complaint'),
         actions: [
           TextButton.icon(
             onPressed: () => _saveDraft(showNotice: true),
             icon: const Icon(Icons.bookmark_outline, size: 18),
-            label: const Text('Save Draft'),
+            label: Text(isFil ? 'I-save ang Draft' : 'Save Draft'),
           ),
           const SizedBox(width: 8),
         ],
@@ -580,18 +612,18 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _buildStepWho(context, isDark),
-                    _buildStepWhat(context, isDark),
-                    _buildStepWhere(context, isDark),
-                    _buildStepEvidence(context, isDark),
-                    _buildStepReview(context, isDark),
+                    _buildStepWho(context, isDark, isFil),
+                    _buildStepWhat(context, isDark, isFil),
+                    _buildStepWhere(context, isDark, isFil),
+                    _buildStepEvidence(context, isDark, isFil),
+                    _buildStepReview(context, isDark, isFil),
                   ],
                 ),
               ),
             ),
 
             // Bottom Navigation Action Bar
-            _buildBottomNav(context, isDark),
+            _buildBottomNav(context, isDark, isFil),
           ],
         ),
       ),
@@ -601,7 +633,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   // ---------------------------------------------------------------------------
   // STEP 1: WHO (SINO)
   // ---------------------------------------------------------------------------
-  Widget _buildStepWho(BuildContext context, bool isDark) {
+  Widget _buildStepWho(BuildContext context, bool isDark, bool isFil) {
     final authUser = context.watch<AuthProvider>().user;
     final theme = Theme.of(context);
 
@@ -612,7 +644,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         children: [
           // Complainant Card
           Text(
-            'NAGREREKLAMO (COMPLAINANT)',
+            isFil ? 'NAGREREKLAMO (COMPLAINANT)' : 'COMPLAINANT',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -639,14 +671,14 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        authUser?.name ?? 'Ikaw (You)',
+                        authUser?.name ?? (isFil ? 'Ikaw (You)' : 'You'),
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         authUser?.residentId != null
-                            ? 'Verified Resident (ID: #${authUser!.residentId})'
-                            : 'Resident profile pending verification',
+                            ? (isFil ? 'Beripikadong Residente (ID: #${authUser!.residentId})' : 'Verified Resident (ID: #${authUser!.residentId})')
+                            : (isFil ? 'Nakabinbin ang Resident Profile' : 'Resident profile pending verification'),
                         style: TextStyle(
                           fontSize: 12,
                           color: authUser?.residentId != null ? Colors.green : Colors.orange.shade800,
@@ -664,7 +696,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
           // Respondent Section
           Text(
-            'INIREREKLAMO (RESPONDENT)',
+            isFil ? 'INIREREKLAMO (RESPONDENT)' : 'RESPONDENT',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -677,8 +709,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
             value: _respondentUnknown,
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            title: const Text('Hindi kilala o hindi residente (Unknown / Unidentified)'),
-            subtitle: const Text('Lagyan ng tsek kung hindi mo alam ang buong pangalan ng inirereklamo'),
+            title: Text(isFil ? 'Hindi kilala o hindi residente (Unknown / Unidentified)' : 'Unknown / Unidentified person'),
+            subtitle: Text(isFil ? 'Lagyan ng tsek kung hindi mo alam ang buong pangalan ng inirereklamo' : 'Check if you do not know the respondent\'s full name'),
             onChanged: (val) {
               setState(() {
                 _respondentUnknown = val ?? false;
@@ -732,8 +764,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                   controller: controller,
                   focusNode: focusNode,
                   decoration: InputDecoration(
-                    labelText: 'Hanapin ang Inirereklamo',
-                    hintText: 'I-type ang pangalan (min 3 letra)...',
+                    labelText: isFil ? 'Hanapin ang Inirereklamo' : 'Search Respondent',
+                    hintText: isFil ? 'I-type ang pangalan (min 3 letra)...' : 'Type name (min 3 letters)...',
                     prefixIcon: const Icon(Icons.search),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -756,13 +788,13 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Napili: ${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName} (${_selectedRespondent!.zone ?? _selectedRespondent!.address ?? "Rosario"})',
+                        '${isFil ? "Napili" : "Selected"}: ${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName} (${_selectedRespondent!.zone ?? _selectedRespondent!.address ?? "Rosario"})',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, size: 18),
-                      tooltip: 'Alisin',
+                      tooltip: isFil ? 'Alisin' : 'Remove',
                       onPressed: () => setState(() => _selectedRespondent = null),
                     ),
                   ],
@@ -778,7 +810,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   // ---------------------------------------------------------------------------
   // STEP 2: WHAT HAPPENED (ANO ANG NANGYARI)
   // ---------------------------------------------------------------------------
-  Widget _buildStepWhat(BuildContext context, bool isDark) {
+  Widget _buildStepWhat(BuildContext context, bool isDark, bool isFil) {
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
@@ -788,7 +820,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         children: [
           // Category
           Text(
-            'KATEGORYA NG REKLAMO',
+            isFil ? 'KATEGORYA NG REKLAMO' : 'COMPLAINT CATEGORY',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -812,7 +844,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
           // Date and Time
           Text(
-            'PETSA AT ORAS NG INSIDENTE',
+            isFil ? 'PETSA AT ORAS NG INSIDENTE' : 'DATE & TIME OF INCIDENT',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -852,7 +884,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
           // Narrative
           Text(
-            'SALAYSAY NG NANGYARI (NARRATIVE)',
+            isFil ? 'SALAYSAY NG NANGYARI (NARRATIVE)' : 'INCIDENT NARRATIVE',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -868,8 +900,12 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               if (_narrativeError != null) _validateNarrative();
             },
             decoration: InputDecoration(
-              hintText: 'Ipaliwanag nang detalyado kung ano ang nangyari, sino ang mga nakasaksi, at paano nagsimula ang insidente...',
-              helperText: 'Maglagay ng sapat na detalye (hindi bababa sa 10 letra).',
+              hintText: isFil
+                  ? 'Ipaliwanag nang detalyado kung ano ang nangyari, sino ang mga nakasaksi, at paano nagsimula ang insidente...'
+                  : 'Explain in detail what happened, any witnesses present, and how the incident began...',
+              helperText: isFil
+                  ? 'Maglagay ng sapat na detalye (hindi bababa sa 10 letra).'
+                  : 'Provide sufficient details (at least 10 characters).',
               errorText: _narrativeError,
               errorMaxLines: 3,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -883,7 +919,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   // ---------------------------------------------------------------------------
   // STEP 3: WHERE (SAAN)
   // ---------------------------------------------------------------------------
-  Widget _buildStepWhere(BuildContext context, bool isDark) {
+  Widget _buildStepWhere(BuildContext context, bool isDark, bool isFil) {
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
@@ -892,7 +928,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'LUGAR O LANDMARK',
+            isFil ? 'LUGAR O LANDMARK' : 'INCIDENT LOCATION / LANDMARK',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -907,8 +943,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               if (_locationError != null) _validateLocation();
             },
             decoration: InputDecoration(
-              hintText: 'e.g. Purok 4, tapat ng Rosario Elementary School',
-              helperText: 'Ilagay ang kalye, purok, o palatandaan.',
+              hintText: isFil ? 'e.g. Purok 4, tapat ng Rosario Elementary School' : 'e.g. Purok 4, near Rosario Elementary School',
+              helperText: isFil ? 'Ilagay ang kalye, purok, o palatandaan.' : 'Specify street, purok, or landmark.',
               errorText: _locationError,
               errorMaxLines: 2,
               prefixIcon: const Icon(Icons.location_on_outlined),
@@ -919,7 +955,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           const SizedBox(height: 16),
 
           Text(
-            'PIN THE LOCATION ON MAP (OPSIYONAL)',
+            isFil ? 'PIN THE LOCATION ON MAP (OPSIYONAL)' : 'PIN LOCATION ON MAP (OPTIONAL)',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -928,7 +964,9 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'I-tap ang mapa para ilipat ang pin. Awtomatikong mapupunan ang address.',
+            isFil
+                ? 'I-tap ang mapa para ilipat ang pin. Awtomatikong mapupunan ang address.'
+                : 'Tap on the map to place a pin. Address will auto-fill.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
@@ -954,7 +992,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   // ---------------------------------------------------------------------------
   // STEP 4: EVIDENCE (EBIDENSYA)
   // ---------------------------------------------------------------------------
-  Widget _buildStepEvidence(BuildContext context, bool isDark) {
+  Widget _buildStepEvidence(BuildContext context, bool isDark, bool isFil) {
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
@@ -963,7 +1001,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'MGA DOKUMENTO AT LARAWAN (OPSIYONAL)',
+            isFil ? 'MGA DOKUMENTO AT LARAWAN (OPSIYONAL)' : 'DOCUMENTS & PHOTOS (OPTIONAL)',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -972,7 +1010,9 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Maaaring mag-attach ng hanggang 15 files (JPG, PNG, PDF, MP4, DOC).',
+            isFil
+                ? 'Maaaring mag-attach ng hanggang 15 files (JPG, PNG, PDF, MP4, DOC).'
+                : 'You may attach up to 15 files (JPG, PNG, PDF, MP4, DOC).',
             style: theme.textTheme.bodySmall?.copyWith(
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
@@ -985,7 +1025,11 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             icon: const Icon(Icons.attach_file),
-            label: Text(_selectedFiles.isEmpty ? 'Pumili ng Files' : 'Magdagdag ng Files (${_selectedFiles.length}/15)'),
+            label: Text(
+              _selectedFiles.isEmpty
+                  ? (isFil ? 'Pumili ng Files' : 'Choose Files')
+                  : (isFil ? 'Magdagdag ng Files (${_selectedFiles.length}/15)' : 'Add More Files (${_selectedFiles.length}/15)'),
+            ),
             onPressed: _pickFiles,
           ),
 
@@ -1004,7 +1048,9 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Walang kalakip na ebidensya.\nMaaaring magpatuloy nang walang files.',
+                      isFil
+                          ? 'Walang kalakip na ebidensya.\nMaaaring magpatuloy nang walang files.'
+                          : 'No evidence attached.\nYou may proceed without files.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
@@ -1065,13 +1111,13 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   // ---------------------------------------------------------------------------
   // STEP 5: REVIEW (PAGSUSURI BAGO I-SUBMIT)
   // ---------------------------------------------------------------------------
-  Widget _buildStepReview(BuildContext context, bool isDark) {
+  Widget _buildStepReview(BuildContext context, bool isDark, bool isFil) {
     final theme = Theme.of(context);
     final respondentDisplay = _respondentUnknown
-        ? 'Hindi kilala / Unknown'
+        ? (isFil ? 'Hindi kilala / Unknown' : 'Unknown / Unidentified')
         : (_selectedRespondent != null
             ? '${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName}'
-            : 'Hindi napili');
+            : (isFil ? 'Hindi napili' : 'None selected'));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1079,7 +1125,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'BUOD NG REKLAMO',
+            isFil ? 'BUOD NG REKLAMO' : 'COMPLAINT SUMMARY',
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -1091,12 +1137,13 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           _buildReviewCard(
             context,
             isDark,
-            title: 'Sino ang Sangkot',
+            isFil,
+            title: isFil ? 'Sino ang Sangkot' : 'People Involved',
             stepIndex: 0,
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildReviewRow('Inirereklamo:', respondentDisplay),
+                _buildReviewRow(isFil ? 'Inirereklamo:' : 'Respondent:', respondentDisplay),
               ],
             ),
           ),
@@ -1106,22 +1153,30 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           _buildReviewCard(
             context,
             isDark,
-            title: 'Detalye ng Insidente',
+            isFil,
+            title: isFil ? 'Detalye ng Insidente' : 'Incident Details',
             stepIndex: 1,
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildReviewRow('Kategorya:', _selectedCategory),
+                _buildReviewRow(isFil ? 'Kategorya:' : 'Category:', _selectedCategory),
                 const SizedBox(height: 4),
-                _buildReviewRow('Petsa at Oras:', '${DateFormat('MMM dd, yyyy').format(_incidentDate)} sa ganap na ${_incidentTime.format(context)}'),
+                _buildReviewRow(
+                  isFil ? 'Petsa at Oras:' : 'Date & Time:',
+                  isFil
+                      ? '${DateFormat('MMM dd, yyyy').format(_incidentDate)} sa ganap na ${_incidentTime.format(context)}'
+                      : '${DateFormat('MMM dd, yyyy').format(_incidentDate)} at ${_incidentTime.format(context)}',
+                ),
                 const SizedBox(height: 6),
                 Text(
-                  'Salaysay:',
+                  isFil ? 'Salaysay:' : 'Narrative:',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _narrativeController.text.trim().isEmpty ? 'Walang salaysay' : _narrativeController.text.trim(),
+                  _narrativeController.text.trim().isEmpty
+                      ? (isFil ? 'Walang salaysay' : 'No narrative provided')
+                      : _narrativeController.text.trim(),
                   style: const TextStyle(fontSize: 13),
                 ),
               ],
@@ -1133,12 +1188,13 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           _buildReviewCard(
             context,
             isDark,
-            title: 'Lugar ng Insidente',
+            isFil,
+            title: isFil ? 'Lugar ng Insidente' : 'Incident Location',
             stepIndex: 2,
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildReviewRow('Lugar / Landmark:', _locationController.text.trim()),
+                _buildReviewRow(isFil ? 'Lugar / Landmark:' : 'Location / Landmark:', _locationController.text.trim()),
                 if (_incidentPoint != null) ...[
                   const SizedBox(height: 4),
                   _buildReviewRow('Map Pin:', '${_incidentPoint!.latitude.toStringAsFixed(4)}, ${_incidentPoint!.longitude.toStringAsFixed(4)}'),
@@ -1152,10 +1208,13 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           _buildReviewCard(
             context,
             isDark,
-            title: 'Ebidensya',
+            isFil,
+            title: isFil ? 'Ebidensya' : 'Evidence',
             stepIndex: 3,
             content: Text(
-              _selectedFiles.isEmpty ? 'Walang kalakip na files' : '${_selectedFiles.length} file(s) kalakip',
+              _selectedFiles.isEmpty
+                  ? (isFil ? 'Walang kalakip na files' : 'No files attached')
+                  : (isFil ? '${_selectedFiles.length} file(s) kalakip' : '${_selectedFiles.length} file(s) attached'),
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
@@ -1169,14 +1228,16 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppTheme.brand500.withValues(alpha: 0.2)),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.info_outline, color: AppTheme.brand500, size: 20),
-                SizedBox(width: 10),
+                const Icon(Icons.info_outline, color: AppTheme.brand500, size: 20),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Kapag na-submit, opisyal itong itatala sa Barangay Rosario Blotter at bibigyan ng Tracking Number.',
-                    style: TextStyle(fontSize: 12),
+                    isFil
+                        ? 'Kapag na-submit, opisyal itong itatala sa Barangay Rosario Blotter at bibigyan ng Tracking Number.'
+                        : 'Once submitted, this will be officially recorded in the Barangay Rosario Blotter with a Tracking Number.',
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ),
               ],
@@ -1189,7 +1250,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
   Widget _buildReviewCard(
     BuildContext context,
-    bool isDark, {
+    bool isDark,
+    bool isFil, {
     required String title,
     required int stepIndex,
     required Widget content,
@@ -1211,13 +1273,16 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               InkWell(
                 onTap: () => _goToStep(stepIndex),
                 borderRadius: BorderRadius.circular(6),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   child: Row(
                     children: [
-                      Icon(Icons.edit_outlined, size: 14, color: AppTheme.brand500),
-                      SizedBox(width: 4),
-                      Text('I-edit', style: TextStyle(fontSize: 12, color: AppTheme.brand500, fontWeight: FontWeight.w600)),
+                      const Icon(Icons.edit_outlined, size: 14, color: AppTheme.brand500),
+                      const SizedBox(width: 4),
+                      Text(
+                        isFil ? 'I-edit' : 'Edit',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.brand500, fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
@@ -1236,7 +1301,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 110,
+          width: 120,
           child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
         ),
         Expanded(
@@ -1249,7 +1314,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   // ---------------------------------------------------------------------------
   // BOTTOM NAV (BACK & NEXT / SUBMIT BUTTONS)
   // ---------------------------------------------------------------------------
-  Widget _buildBottomNav(BuildContext context, bool isDark) {
+  Widget _buildBottomNav(BuildContext context, bool isDark, bool isFil) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
@@ -1265,7 +1330,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               icon: const Icon(Icons.arrow_back, size: 16),
-              label: const Text('Bumalik'),
+              label: Text(isFil ? 'Bumalik' : 'Back'),
               onPressed: _isSubmitting ? null : _previousStep,
             ),
             const SizedBox(width: 12),
@@ -1279,7 +1344,10 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       minimumSize: const Size(double.infinity, 48),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    icon: const Text('Susunod', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    icon: Text(
+                      isFil ? 'Susunod' : 'Next',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
                     label: const Icon(Icons.arrow_forward, size: 16),
                     onPressed: _nextStep,
                   )
@@ -1297,9 +1365,9 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text(
-                            'I-SUBMIT ANG REKLAMO',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5),
+                        : Text(
+                            isFil ? 'I-SUBMIT ANG REKLAMO' : 'SUBMIT COMPLAINT',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5),
                           ),
                   ),
           ),

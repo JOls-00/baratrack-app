@@ -10,6 +10,7 @@ import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/hearing_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../walkthrough/walkthrough_screen.dart';
 import '../complaints/file_complaint_screen.dart';
@@ -82,6 +83,8 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     final complaintProvider = context.watch<ComplaintProvider>();
     final complaints = complaintProvider.myComplaints;
     final sideMargin = AppTheme.sideMargin(context);
+    final locale = context.watch<LocaleProvider>();
+    final isFil = locale.isFilipino;
 
     // Active complaint
     ComplaintModel? activeComplaint;
@@ -126,28 +129,28 @@ class _UserDashboardViewState extends State<UserDashboardView> {
           children: [
             // 1. Unsent Offline Drafts Reminder Banner (Task 27)
             if (_unsentDraftsCount > 0) ...[
-              _buildDraftsReminderBanner(theme, isDark),
+              _buildDraftsReminderBanner(theme, isDark, isFil),
               const SizedBox(height: AppTheme.space16),
             ],
 
             // 2. Main Action Card "File a Complaint" (Task 27)
-            _buildMainActionCard(context, theme, user?.name ?? 'Resident', isDark),
+            _buildMainActionCard(context, theme, user?.name ?? 'Resident', isDark, isFil),
             const SizedBox(height: AppTheme.space16),
 
             // 3. Next Hearing Card (Task 27)
-            _buildNextHearingCard(theme, nextHearing, isDark),
+            _buildNextHearingCard(theme, nextHearing, isDark, isFil),
             const SizedBox(height: AppTheme.space16),
 
             // 4. Case Tracking Overview or Emergency Contacts
             if (_narrow) ...[
               if (activeComplaint != null)
-                _buildTimelineCard(theme, activeComplaint, isDark)
+                _buildTimelineCard(theme, activeComplaint, isDark, isFil)
               else
-                _buildNoActiveCaseCard(theme, isDark),
+                _buildNoActiveCaseCard(theme, isDark, isFil),
               const SizedBox(height: AppTheme.space16),
-              _buildEmergencyContacts(theme, isDark),
+              _buildEmergencyContacts(theme, isDark, isFil),
               const SizedBox(height: AppTheme.space16),
-              _buildProfileCompleteness(theme, user?.residentId != null, isDark),
+              _buildProfileCompleteness(theme, user?.residentId != null, isDark, isFil),
             ] else ...[
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,17 +158,17 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                   Expanded(
                     flex: 3,
                     child: activeComplaint != null
-                        ? _buildTimelineCard(theme, activeComplaint, isDark)
-                        : _buildNoActiveCaseCard(theme, isDark),
+                        ? _buildTimelineCard(theme, activeComplaint, isDark, isFil)
+                        : _buildNoActiveCaseCard(theme, isDark, isFil),
                   ),
                   const SizedBox(width: AppTheme.space16),
                   Expanded(
                     flex: 2,
                     child: Column(
                       children: [
-                        _buildEmergencyContacts(theme, isDark),
+                        _buildEmergencyContacts(theme, isDark, isFil),
                         const SizedBox(height: AppTheme.space16),
-                        _buildProfileCompleteness(theme, user?.residentId != null, isDark),
+                        _buildProfileCompleteness(theme, user?.residentId != null, isDark, isFil),
                       ],
                     ),
                   ),
@@ -179,7 +182,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   }
 
   /// Drafts Reminder Banner (Task 27)
-  Widget _buildDraftsReminderBanner(ThemeData theme, bool isDark) {
+  Widget _buildDraftsReminderBanner(ThemeData theme, bool isDark, bool isFil) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.space16),
       decoration: BoxDecoration(
@@ -206,7 +209,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Mayroon kang $_unsentDraftsCount hindi pa nai-sync na reklamo',
+                  isFil
+                      ? 'Mayroon kang $_unsentDraftsCount hindi pa nai-sync na reklamo'
+                      : 'You have $_unsentDraftsCount unsent offline complaint${_unsentDraftsCount > 1 ? 's' : ''}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -215,7 +220,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                 ),
                 const SizedBox(height: AppTheme.space4),
                 Text(
-                  'I-tap para ipadala kapag may internet o suriin ang drafts.',
+                  isFil
+                      ? 'I-tap para ipadala kapag may internet o suriin ang drafts.'
+                      : 'Tap to send once connected or review your offline drafts.',
                   style: TextStyle(
                     fontSize: 12,
                     color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
@@ -237,7 +244,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                 padding: const EdgeInsets.symmetric(horizontal: AppTheme.space12, vertical: AppTheme.space8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text('Tingnan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              child: Text(isFil ? 'Tingnan' : 'View', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             ),
           ),
         ],
@@ -246,7 +253,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   }
 
   /// Main Action Card "File a Complaint" (Task 27)
-  Widget _buildMainActionCard(BuildContext context, ThemeData theme, String name, bool isDark) {
+  Widget _buildMainActionCard(BuildContext context, ThemeData theme, String name, bool isDark, bool isFil) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space32),
@@ -284,7 +291,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
               const SizedBox(width: AppTheme.space8),
               Expanded(
                 child: Text(
-                  'Mabuhay, $name!',
+                  isFil ? 'Mabuhay, $name!' : 'Welcome, $name!',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
@@ -297,7 +304,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
           ),
           const SizedBox(height: AppTheme.space12),
           Text(
-            'Maghain ng Reklamo',
+            isFil ? 'Maghain ng Reklamo' : 'File a Complaint',
             style: TextStyle(
               fontSize: _narrow ? 22 : 28,
               fontWeight: FontWeight.w900,
@@ -307,7 +314,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
           ),
           const SizedBox(height: AppTheme.space8),
           Text(
-            'Ipaabot ang iyong sumbong o alitan sa Lupon Tagapamayapa ng Barangay Rosario sa pamamagitan ng mabilisang step-by-step form.',
+            isFil
+                ? 'Ipaabot ang iyong sumbong o alitan sa Lupon Tagapamayapa ng Barangay Rosario sa pamamagitan ng mabilisang step-by-step form.'
+                : 'Submit a blotter report or dispute to the Lupon Tagapamayapa of Barangay Rosario via the guided step-by-step form.',
             style: TextStyle(
               fontSize: _narrow ? 13 : 14,
               color: Colors.white.withValues(alpha: 0.9),
@@ -326,9 +335,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                 ).then((_) => _checkDrafts());
               },
               icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-              label: const Text(
-                'MAGHAIN NGAYON',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+              label: Text(
+                isFil ? 'MAGHAIN NGAYON' : 'FILE NOW',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -344,7 +353,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   }
 
   /// Next Upcoming Hearing Card (Task 27)
-  Widget _buildNextHearingCard(ThemeData theme, HearingModel? hearing, bool isDark) {
+  Widget _buildNextHearingCard(ThemeData theme, HearingModel? hearing, bool isDark, bool isFil) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppTheme.space16),
@@ -401,7 +410,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                         children: [
                           Expanded(
                             child: Text(
-                              'SUSUNOD NA PAGDINIG (HEARING)',
+                              isFil ? 'SUSUNOD NA PAGDINIG (HEARING)' : 'NEXT SCHEDULED HEARING',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -415,7 +424,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                       ),
                       const SizedBox(height: AppTheme.space4),
                       Text(
-                        hearing.caseNumber.isNotEmpty ? 'Kaso #${hearing.caseNumber}' : 'Lupon Mediation Hearing',
+                        hearing.caseNumber.isNotEmpty
+                            ? (isFil ? 'Kaso #${hearing.caseNumber}' : 'Case #${hearing.caseNumber}')
+                            : (isFil ? 'Paghaharap sa Lupon' : 'Lupon Mediation Hearing'),
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -441,7 +452,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                           const SizedBox(width: AppTheme.space4),
                           Expanded(
                             child: Text(
-                              'Barangay Hall Lupon Office',
+                              hearing.venue.isNotEmpty ? hearing.venue : 'Barangay Hall Lupon Office',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
@@ -476,7 +487,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Walang Nakaiskedyul na Pagdinig',
+                        isFil ? 'Walang Nakaiskedyul na Pagdinig' : 'No Hearings Scheduled',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -485,7 +496,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                       ),
                       const SizedBox(height: AppTheme.space4),
                       Text(
-                        'Lahat ng iyong kaso ay napakinggan na o naghihintay ng Lupon review.',
+                        isFil
+                            ? 'Lahat ng iyong kaso ay napakinggan na o naghihintay ng Lupon review.'
+                            : 'All your cases have been heard or are currently awaiting Lupon review.',
                         style: TextStyle(
                           fontSize: 12,
                           color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
@@ -499,7 +512,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     );
   }
 
-  Widget _buildNoActiveCaseCard(ThemeData theme, bool isDark) {
+  Widget _buildNoActiveCaseCard(ThemeData theme, bool isDark, bool isFil) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space24),
@@ -516,7 +529,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
           Icon(Icons.assignment_turned_in_outlined, size: 48, color: isDark ? AppTheme.textHintDark : AppTheme.textHintLight),
           const SizedBox(height: AppTheme.space12),
           Text(
-            'Walang Aktibong Kaso',
+            isFil ? 'Walang Aktibong Kaso' : 'No Active Cases',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
@@ -525,7 +538,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
           ),
           const SizedBox(height: AppTheme.space4),
           Text(
-            'Wala kang patuloy na legal proceeding o pagdinig sa kasalukuyan.',
+            isFil
+                ? 'Wala kang patuloy na legal proceeding o pagdinig sa kasalukuyan.'
+                : 'You have no ongoing legal proceedings or hearings at this time.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
@@ -537,7 +552,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     );
   }
 
-  Widget _buildTimelineCard(ThemeData theme, ComplaintModel complaint, bool isDark) {
+  Widget _buildTimelineCard(ThemeData theme, ComplaintModel complaint, bool isDark, bool isFil) {
     final isCase = complaint.caseId != null;
 
     return Container(
@@ -558,7 +573,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
             children: [
               Expanded(
                 child: Text(
-                  isCase ? 'Aktibong Kaso: #${complaint.caseNumber}' : 'Katayuan ng Reklamo: #${complaint.id}',
+                  isCase
+                      ? (isFil ? 'Aktibong Kaso: #${complaint.caseNumber}' : 'Active Case: #${complaint.caseNumber}')
+                      : (isFil ? 'Katayuan ng Reklamo: #${complaint.id}' : 'Complaint Status: #${complaint.id}'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -570,10 +587,42 @@ class _UserDashboardViewState extends State<UserDashboardView> {
             ],
           ),
           const SizedBox(height: AppTheme.space16),
-          _timelineStep(theme, 'Naihain ang Reklamo', DateFormat('MMM dd, yyyy').format(complaint.dateFiled), true, true, isDark),
-          _timelineStep(theme, isCase ? 'Opisyal na Blotter' : 'Sinusuri ng Lupon', isCase ? 'Nagawa ang opisyal na case' : 'Hinihintay ang pagsusuri', isCase, true, isDark),
-          _timelineStep(theme, 'Mediation / Paghaharap', 'Status: ${complaint.status}', complaint.status == 'Settled' || complaint.status == 'Closed', true, isDark),
-          _timelineStep(theme, 'Resolusyon / Kasunduan', '--', complaint.status == 'Settled' || complaint.status == 'Closed', false, isDark),
+          _timelineStep(
+            theme,
+            isFil ? 'Naihain ang Reklamo' : 'Complaint Filed',
+            DateFormat('MMM dd, yyyy').format(complaint.dateFiled),
+            true,
+            true,
+            isDark,
+          ),
+          _timelineStep(
+            theme,
+            isCase
+                ? (isFil ? 'Opisyal na Blotter' : 'Official Blotter')
+                : (isFil ? 'Sinusuri ng Lupon' : 'Lupon Review'),
+            isCase
+                ? (isFil ? 'Nagawa ang opisyal na case' : 'Official case created')
+                : (isFil ? 'Hinihintay ang pagsusuri' : 'Awaiting initial assessment'),
+            isCase,
+            true,
+            isDark,
+          ),
+          _timelineStep(
+            theme,
+            isFil ? 'Mediation / Paghaharap' : 'Mediation Hearing',
+            'Status: ${complaint.status}',
+            complaint.status == 'Settled' || complaint.status == 'Closed',
+            true,
+            isDark,
+          ),
+          _timelineStep(
+            theme,
+            isFil ? 'Resolusyon / Kasunduan' : 'Resolution / Agreement',
+            '--',
+            complaint.status == 'Settled' || complaint.status == 'Closed',
+            false,
+            isDark,
+          ),
         ],
       ),
     );
@@ -622,7 +671,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     );
   }
 
-  Widget _buildEmergencyContacts(ThemeData theme, bool isDark) {
+  Widget _buildEmergencyContacts(ThemeData theme, bool isDark, bool isFil) {
     return Container(
       padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space24),
       decoration: BoxDecoration(
@@ -641,7 +690,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
               const Icon(Icons.emergency_rounded, size: 18, color: AppTheme.brand500),
               const SizedBox(width: AppTheme.space8),
               Text(
-                'Emergency Hotlines',
+                isFil ? 'Mga Hotline sa Emergency' : 'Emergency Hotlines',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -686,7 +735,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
     ),
   );
 
-  Widget _buildProfileCompleteness(ThemeData theme, bool isRegistered, bool isDark) {
+  Widget _buildProfileCompleteness(ThemeData theme, bool isRegistered, bool isDark, bool isFil) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space24),
@@ -711,7 +760,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isRegistered ? 'Rehistradong Residente' : 'Kailangang Magparehistro',
+                  isRegistered
+                      ? (isFil ? 'Rehistradong Residente' : 'Verified Resident')
+                      : (isFil ? 'Kailangang Magparehistro' : 'Profile Setup Required'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -719,7 +770,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                   ),
                 ),
                 Text(
-                  isRegistered ? 'Opisyal na nakatala sa Rosario Registry' : 'I-link ang account para makapag-blotter',
+                  isRegistered
+                      ? (isFil ? 'Opisyal na nakatala sa Rosario Registry' : 'Official record in Rosario Registry')
+                      : (isFil ? 'I-link ang account para makapag-blotter' : 'Link your resident profile to file blotter reports'),
                   style: TextStyle(
                     fontSize: 11,
                     color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,

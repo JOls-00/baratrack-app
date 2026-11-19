@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/evidence_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/empty_state_view.dart';
@@ -90,15 +91,24 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
     final complaintProvider = context.watch<ComplaintProvider>();
     final complaints = complaintProvider.myComplaints;
     final sideMargin = AppTheme.sideMargin(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(sideMargin, 16, sideMargin, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('My Filed Complaints', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          Text(
+            isFil ? 'Aking mga Reklamo' : 'My Filed Complaints',
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
-          const Text('History of all blotter reports you have submitted.', style: TextStyle(color: AppTheme.textSecondaryLight)),
+          Text(
+            isFil
+                ? 'Kasaysayan ng lahat ng naihaing blotter at sumbong.'
+                : 'History of all blotter reports you have submitted.',
+            style: const TextStyle(color: AppTheme.textSecondaryLight),
+          ),
           const SizedBox(height: 16),
           Expanded(
             child: complaintProvider.isLoading && complaints.isEmpty
@@ -106,9 +116,11 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                 : complaints.isEmpty
                     ? EmptyStateView(
                         icon: Icons.assignment_late_outlined,
-                        title: 'Wala pang naihaing reklamo',
-                        message: 'Dito mo masusubaybayan ang kasaysayan at estado ng lahat ng iyong blotter at reklamo sa Barangay.',
-                        actionLabel: 'Maghain ng Reklamo',
+                        title: isFil ? 'Wala pang naihaing reklamo' : 'No Complaints Filed Yet',
+                        message: isFil
+                            ? 'Dito mo masusubaybayan ang kasaysayan at estado ng lahat ng iyong blotter at reklamo sa Barangay.'
+                            : 'Here you can track the history and status of all your blotter reports and complaints in the Barangay.',
+                        actionLabel: isFil ? 'Maghain ng Reklamo' : 'File a Complaint',
                         onAction: () {
                           Navigator.push(
                             context,
@@ -198,7 +210,7 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                               const Icon(Icons.person_outline, size: 14, color: AppTheme.textSecondaryLight),
                                               const SizedBox(width: 4),
                                               Text(
-                                                'Resp: ${c.respondent?.fullName ?? 'Unidentified'}',
+                                                'Resp: ${c.respondent?.fullName ?? (isFil ? "Hindi kilala" : "Unidentified")}',
                                                 style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryLight),
                                               ),
                                             ],
@@ -217,7 +229,7 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                           runSpacing: 8,
                                           children: [
                                             Text(
-                                              'I-tap para sa buong detalye →',
+                                              isFil ? 'I-tap para sa buong detalye →' : 'Tap for full details →',
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,
@@ -233,7 +245,10 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                                                 }
                                               },
                                               icon: const Icon(Icons.attach_file, size: 16),
-                                              label: const Text('Attach Evidence', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                              label: Text(
+                                                isFil ? 'Maglakip ng Ebidensya' : 'Attach Evidence',
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
                                               style: OutlinedButton.styleFrom(
                                                 minimumSize: const Size(44, 38),
                                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/case_model.dart';
 import '../../providers/complaint_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../complaints/location_picker.dart' show defaultMapCenter;
 import '../complaints/map_layers.dart';
 
@@ -63,7 +64,10 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
       final pins = await context.read<ComplaintProvider>().loadIncidentPins(from: _ymd.format(_range.start), to: _ymd.format(_range.end));
       if (mounted) setState(() => _all = pins);
     } catch (e) {
-      if (mounted) setState(() => _error = 'Hindi ma-load ang mapa. Subukan ulit.');
+      if (mounted) {
+        final isFil = context.read<LocaleProvider>().isFilipino;
+        setState(() => _error = isFil ? 'Hindi ma-load ang mapa. Subukan ulit.' : 'Failed to load map data. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -88,6 +92,7 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
   @override
   Widget build(BuildContext context) {
     final shown = _shown;
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final categories = _all.map((p) => p.typeName).toSet().toList()..sort();
     final primary = Theme.of(context).colorScheme.primary;
     final pts = shown.map((p) => LatLng(p.latitude, p.longitude)).toList();
@@ -105,8 +110,12 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                 children: [
                   Text('Incident Map', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 2),
-                  Text('Saan naiulat ang mga reklamo. Staff lamang ang nakakakita nito.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(
+                    isFil
+                        ? 'Saan naiulat ang mga reklamo. Staff lamang ang nakakakita nito.'
+                        : 'Where complaints were reported. Visible to authorized staff only.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 ],
               );
               final actionControls = Row(
@@ -295,7 +304,9 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                           child: Padding(
                             padding: const EdgeInsets.all(18),
                             child: Text(
-                              'Walang reklamong may pin sa napiling petsa.\nLalabas dito ang mga bagong reklamo na may lokasyon.',
+                              isFil
+                                  ? 'Walang reklamong may pin sa napiling petsa.\nLalabas dito ang mga bagong reklamo na may lokasyon.'
+                                  : 'No pinned complaints for the selected dates.\nNew reports with a map location will appear here.',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: Colors.grey.shade700),
                             ),

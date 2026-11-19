@@ -30,6 +30,7 @@ import '../../presentation/screens/notifications/notifications_view.dart';
 import '../../presentation/screens/announcements/announcements_view.dart';
 import '../../presentation/screens/profile/profile_editor_view.dart';
 import '../../presentation/providers/auth_provider.dart';
+import '../../presentation/providers/locale_provider.dart';
 import '../../presentation/screens/offline/offline_mode_screen.dart';
 import '../../presentation/screens/offline/offline_drafts_screen.dart';
 
@@ -42,10 +43,37 @@ class AppRouter {
   static set userChoseOffline(bool value) => offlineNotifier.value = value;
   static bool _isShowingOfflineDialog = false;
 
+  static CustomTransitionPage<void> _smoothPage(GoRouterState state, Widget child) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 240),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.025),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   static void promptOfflineMode() {
     if (userChoseOffline) return;
     final context = navigatorKey.currentContext;
     if (context == null || _isShowingOfflineDialog) return;
+
+    bool isFil = true;
+    try {
+      isFil = context.read<LocaleProvider>().isFilipino;
+    } catch (_) {}
 
     _isShowingOfflineDialog = true;
     showDialog(
@@ -64,17 +92,19 @@ class AppRouter {
               child: Icon(Icons.wifi_off_rounded, color: Colors.amber.shade900, size: 24),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Walang Koneksyon',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                isFil ? 'Walang Koneksyon' : 'No Connection',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ],
         ),
-        content: const Text(
-          'Hindi maabot ang internet o server. Nais mo bang lumipat sa Offline Mode para ma-access ang iyong mga naka-save na reklamo at iskedyul?',
-          style: TextStyle(fontSize: 14, height: 1.4),
+        content: Text(
+          isFil
+              ? 'Hindi maabot ang internet o server. Nais mo bang lumipat sa Offline Mode para ma-access ang iyong mga naka-save na reklamo at iskedyul?'
+              : 'Unable to reach the internet or server. Switch to Offline Mode to access your saved complaints and schedules?',
+          style: const TextStyle(fontSize: 14, height: 1.4),
         ),
         actions: [
           TextButton(
@@ -82,7 +112,7 @@ class AppRouter {
               _isShowingOfflineDialog = false;
               Navigator.pop(ctx);
             },
-            child: const Text('Kanselahin', style: TextStyle(color: Colors.grey)),
+            child: Text(isFil ? 'Kanselahin' : 'Cancel', style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -91,7 +121,10 @@ class AppRouter {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             icon: const Icon(Icons.offline_pin_rounded, size: 18),
-            label: const Text('Lumipat sa Offline Mode', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: Text(
+              isFil ? 'Lumipat sa Offline Mode' : 'Switch to Offline Mode',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             onPressed: () {
               _isShowingOfflineDialog = false;
               userChoseOffline = true;
@@ -148,7 +181,7 @@ class AppRouter {
       ),
       GoRoute(
         path: '/offline-drafts',
-        builder: (context, state) => const OfflineDraftsScreen(),
+        pageBuilder: (context, state) => _smoothPage(state, const OfflineDraftsScreen()),
       ),
       GoRoute(
         path: '/forgot-password',
@@ -190,63 +223,61 @@ class AppRouter {
         routes: [
           GoRoute(
             path: '/',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final user = context.read<AuthProvider>().user;
-              if (user?.role == 'Resident') {
-                return const UserDashboardView();
-              }
-              return const DashboardView();
+              final view = user?.role == 'Resident' ? const UserDashboardView() : const DashboardView();
+              return _smoothPage(state, view);
             },
           ),
-          GoRoute(path: '/calendar', builder: (context, state) => const CalendarScreen()),
+          GoRoute(path: '/calendar', pageBuilder: (context, state) => _smoothPage(state, const CalendarScreen())),
           // Admin Routes
-          GoRoute(path: '/complaints-inbox', builder: (context, state) => const ComplaintsInboxScreen()),
+          GoRoute(path: '/complaints-inbox', pageBuilder: (context, state) => _smoothPage(state, const ComplaintsInboxScreen())),
           GoRoute(
             path: '/cases',
-            builder: (context, state) => CaseListScreen(
-              statusFilter: state.uri.queryParameters['status'],
+            pageBuilder: (context, state) => _smoothPage(
+              state,
+              CaseListScreen(statusFilter: state.uri.queryParameters['status']),
             ),
           ),
           GoRoute(
             path: '/cases/:id',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final id = int.parse(state.pathParameters['id']!);
-              return CaseDetailScreen(caseId: id);
+              return _smoothPage(state, CaseDetailScreen(caseId: id));
             },
           ),
           GoRoute(
               path: '/residents',
-              builder: (context, state) => const ResidentsListScreen(),
+              pageBuilder: (context, state) => _smoothPage(state, const ResidentsListScreen()),
               routes: [
                 GoRoute(
                   path: 'new',
-                  builder: (context, state) => const ResidentFormScreen(),
+                  pageBuilder: (context, state) => _smoothPage(state, const ResidentFormScreen()),
                 ),
                 GoRoute(
                   path: ':id',
-                  builder: (context, state) {
+                  pageBuilder: (context, state) {
                     final id = int.parse(state.pathParameters['id']!);
-                    return ResidentDetailScreen(residentId: id);
+                    return _smoothPage(state, ResidentDetailScreen(residentId: id));
                   },
                 ),
-              ]
-          ),
-          GoRoute(path: '/hearings-mgmt', builder: (context, state) => const HearingsManagementScreen()),
-          GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
-          GoRoute(path: '/incident-map', builder: (context, state) => const IncidentMapScreen()),
-          GoRoute(path: '/users', builder: (context, state) => const UserManagementScreen()),
+              ]),
+          GoRoute(path: '/hearings-mgmt', pageBuilder: (context, state) => _smoothPage(state, const HearingsManagementScreen())),
+          GoRoute(path: '/reports', pageBuilder: (context, state) => _smoothPage(state, const ReportsScreen())),
+          GoRoute(path: '/incident-map', pageBuilder: (context, state) => _smoothPage(state, const IncidentMapScreen())),
+          GoRoute(path: '/users', pageBuilder: (context, state) => _smoothPage(state, const UserManagementScreen())),
 
           // Resident Routes
-          GoRoute(path: '/my-complaints', builder: (context, state) => const MyComplaintsView()),
-          GoRoute(path: '/my-hearings', builder: (context, state) => const MyHearingsView()),
-          GoRoute(path: '/my-documents', builder: (context, state) => const MyDocumentsView()),
-          GoRoute(path: '/notifications', builder: (context, state) => const NotificationsView()),
-          GoRoute(path: '/app-announcements', builder: (context, state) => const AnnouncementsView()),
-          GoRoute(path: '/profile', builder: (context, state) => const ProfileEditorView()),
+          GoRoute(path: '/my-complaints', pageBuilder: (context, state) => _smoothPage(state, const MyComplaintsView())),
+          GoRoute(path: '/my-hearings', pageBuilder: (context, state) => _smoothPage(state, const MyHearingsView())),
+          GoRoute(path: '/my-documents', pageBuilder: (context, state) => _smoothPage(state, const MyDocumentsView())),
+          GoRoute(path: '/notifications', pageBuilder: (context, state) => _smoothPage(state, const NotificationsView())),
+          GoRoute(path: '/app-announcements', pageBuilder: (context, state) => _smoothPage(state, const AnnouncementsView())),
+          GoRoute(path: '/profile', pageBuilder: (context, state) => _smoothPage(state, const ProfileEditorView())),
 
           // Shared Routes
-          GoRoute(path: '/settings', builder: (context, state) => const SettingsView()),
-          GoRoute(path: '/file-complaint', builder: (context, state) => const FileComplaintScreen()),
+          GoRoute(path: '/settings', pageBuilder: (context, state) => _smoothPage(state, const SettingsView())),
+          GoRoute(path: '/file-complaint', pageBuilder: (context, state) => _smoothPage(state, const FileComplaintScreen())),
         ],
       ),
     ],

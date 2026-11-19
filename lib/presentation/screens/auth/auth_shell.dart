@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/widgets/brand_logo.dart';
 import '../../providers/branding_provider.dart';
+import '../../providers/locale_provider.dart';
 import 'package:provider/provider.dart';
 import '../portal/landing_sections.dart';
 import '../portal/portal_shell.dart' show ClockChip;
@@ -95,10 +96,23 @@ class _BrandPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isFil = context.watch<LocaleProvider>().isFilipino;
     final features = [
-      (Icons.edit_note, 'File complaints online', 'Kahit anong oras, nasaan ka man.'),
-      (Icons.track_changes, 'Track every step', 'Alamin ang status at petsa ng hearing.'),
-      (Icons.notifications_active_outlined, 'Stay informed', 'Mga abiso at announcement mula sa barangay.'),
+      (
+        Icons.edit_note,
+        'File complaints online',
+        isFil ? 'Kahit anong oras, nasaan ka man.' : 'Anytime, wherever you are.',
+      ),
+      (
+        Icons.track_changes,
+        'Track every step',
+        isFil ? 'Alamin ang status at petsa ng hearing.' : 'Monitor case status and hearing dates.',
+      ),
+      (
+        Icons.notifications_active_outlined,
+        'Stay informed',
+        isFil ? 'Mga abiso at announcement mula sa barangay.' : 'Alerts and announcements from the barangay.',
+      ),
     ];
     return Container(
       decoration: BoxDecoration(
