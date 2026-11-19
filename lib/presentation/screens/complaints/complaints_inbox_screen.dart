@@ -16,19 +16,15 @@ class _ComplaintsInboxScreenState extends State<ComplaintsInboxScreen> {
   @override
   void initState() {
     super.initState();
-    debugPrint("DEBUG: ComplaintsInboxScreen.initState");
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        debugPrint("DEBUG: ComplaintsInboxScreen fetching complaints");
         context.read<ComplaintProvider>().fetchMyComplaints().catchError((e) {
-          debugPrint("DEBUG: ComplaintsInboxScreen fetch error: $e");
         });
       }
     });
   }
 
   Future<void> _convertToCase(int complaintId) async {
-    debugPrint("DEBUG: _convertToCase starting for ID: $complaintId");
     
     // 1. Show the loading dialog
     showDialog(
@@ -41,18 +37,14 @@ class _ComplaintsInboxScreenState extends State<ComplaintsInboxScreen> {
       final caseProvider = context.read<CaseProvider>();
       final complaintProvider = context.read<ComplaintProvider>();
 
-      debugPrint("DEBUG: Calling caseProvider.convertToCase");
       await caseProvider.convertToCase(complaintId);
-      debugPrint("DEBUG: caseProvider.convertToCase finished");
       
       if (!mounted) {
-        debugPrint("DEBUG: ComplaintsInboxScreen no longer mounted after await");
         return;
       }
 
       // 2. Safely close the dialog only
       Navigator.of(context, rootNavigator: true).pop();
-      debugPrint("DEBUG: Loader closed");
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -63,12 +55,9 @@ class _ComplaintsInboxScreenState extends State<ComplaintsInboxScreen> {
       );
       
       // 3. Refresh the local complaints list
-      debugPrint("DEBUG: Refreshing complaints list");
       await complaintProvider.fetchMyComplaints();
-      debugPrint("DEBUG: Complaints list refreshed");
       
     } catch (e) {
-      debugPrint("DEBUG: _convertToCase error: $e");
       if (mounted) {
         // Attempt to close only the dialog if it's still open
         Navigator.of(context, rootNavigator: true).maybePop();
@@ -81,7 +70,6 @@ class _ComplaintsInboxScreenState extends State<ComplaintsInboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("DEBUG: ComplaintsInboxScreen.build");
     final theme = Theme.of(context);
     final complaintProvider = context.watch<ComplaintProvider>();
     final pendingComplaints = complaintProvider.myComplaints.where((c) => c.status == 'Pending').toList();
@@ -101,7 +89,27 @@ class _ComplaintsInboxScreenState extends State<ComplaintsInboxScreen> {
           : RefreshIndicator(
               onRefresh: () => complaintProvider.fetchMyComplaints(),
               child: pendingComplaints.isEmpty
-                  ? _buildEmptyState(theme)
+                  ? (complaintProvider.error != null
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            const SizedBox(height: 120),
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text('Failed to load complaints.\n${complaintProvider.error}', textAlign: TextAlign.center),
+                            ),
+                            const SizedBox(height: 12),
+                            Center(
+                              child: ElevatedButton(
+                                onPressed: () => complaintProvider.fetchMyComplaints(),
+                                child: const Text('Retry'),
+                              ),
+                            ),
+                          ],
+                        )
+                      : _buildEmptyState(theme))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: pendingComplaints.length,

@@ -41,6 +41,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
     try {
       final caseProvider = context.read<CaseProvider>();
       final details = await caseProvider.fetchCaseDetails(widget.caseId);
+      if (!mounted) return;
       
       setState(() {
         _caseDetails = details;
@@ -49,6 +50,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
 
       _fetchEvidence();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -60,13 +62,14 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
     setState(() => _isEvidenceLoading = true);
     try {
       final results = await context.read<EvidenceRepository>().getEvidenceForCase(widget.caseId);
+      if (!mounted) return;
       setState(() {
         _evidence = results;
       });
     } catch (e) {
       debugPrint("Error fetching evidence: $e");
     } finally {
-      setState(() => _isEvidenceLoading = false);
+      if (mounted) setState(() => _isEvidenceLoading = false);
     }
   }
 
@@ -121,13 +124,19 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       ),
     );
 
+    final remarks = remarksController.text.trim();
+    // Dispose after the dialog exit animation completes.
+    Future.delayed(const Duration(milliseconds: 500), remarksController.dispose);
+    if (!mounted) return;
+
     if (confirmed == true) {
       try {
         await context.read<CaseProvider>().updateStatus(
           widget.caseId, 
           newStatus, 
-          remarksController.text.trim(),
+          remarks,
         );
+        if (!mounted) return;
         _fetchDetails(); // Refresh all
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -147,6 +156,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
 
     return Scaffold(
       appBar: AppBar(
@@ -155,13 +165,13 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           if (_caseDetails != null) ...[
             IconButton(
               icon: const Icon(Icons.copy, size: 20),
-              tooltip: 'Kopyahin ang Case Number',
+              tooltip: isFil ? 'Kopyahin ang Case Number' : 'Copy Case Number',
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: _caseDetails!.caseNumber));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Kopyado na sa clipboard ang Case Number!'),
-                    duration: Duration(seconds: 2),
+                  SnackBar(
+                    content: Text(isFil ? 'Kopyado na sa clipboard ang Case Number!' : 'Case Number copied to clipboard!'),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               },
@@ -176,7 +186,19 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Error: $_error'))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Error: $_error', textAlign: TextAlign.center),
+                        const SizedBox(height: 12),
+                        ElevatedButton(onPressed: _fetchDetails, child: const Text('Retry')),
+                      ],
+                    ),
+                  ),
+                )
               : _caseDetails == null
                   ? const Center(child: Text('Case not found'))
                   : _buildContent(theme),
@@ -191,8 +213,11 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 12,
             children: [
               _buildHeader(theme, complaint),
               ElevatedButton.icon(
@@ -492,12 +517,14 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       children: [
         Icon(icon, size: 20, color: Colors.blue),
         const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ],
+          ),
         )
       ],
     );
@@ -537,7 +564,12 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 3),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: MediaQuery.of(context).size.width < 600 ? 1 : (MediaQuery.of(context).size.width < 1000 ? 2 : 4),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: MediaQuery.of(context).size.width < 600 ? 5 : 3,
+            ),
             itemCount: _evidence.length,
             itemBuilder: (context, i) {
               final file = _evidence[i];

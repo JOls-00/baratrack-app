@@ -16,8 +16,11 @@ class HearingRepository {
         if (status != null && status != 'All') 'status': status,
       });
       final data = response.data['data'] as List;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('offline_cached_hearings', jsonEncode(data));
+      if (status == null || status == 'All') {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('offline_cached_hearings', jsonEncode(data));
+        await prefs.setString('offline_cache_timestamp', DateTime.now().toIso8601String());
+      }
 
       return data.map((json) => HearingModel.fromJson(json)).toList();
     } catch (e) {

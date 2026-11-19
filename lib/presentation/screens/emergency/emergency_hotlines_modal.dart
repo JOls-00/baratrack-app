@@ -88,13 +88,17 @@ class EmergencyHotlinesModal extends StatelessWidget {
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       padding: EdgeInsets.fromLTRB(
         16,
         12,
         16,
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -244,6 +248,7 @@ class EmergencyHotlinesModal extends StatelessWidget {
             ),
           ],
         ],
+        ),
       ),
     );
   }

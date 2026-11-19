@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/router/app_router.dart';
+import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../screens/complaints/file_complaint_screen.dart';
@@ -23,7 +24,6 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
   late TabController _tabController;
   List<dynamic> _cachedCases = [];
   List<dynamic> _cachedHearings = [];
-  bool _hasDraft = false;
   bool _isLoading = true;
 
   final List<Map<String, String>> _emergencyContacts = [
@@ -72,7 +72,6 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
 
     final casesStr = prefs.getString('offline_cached_cases');
     final hearingsStr = prefs.getString('offline_cached_hearings');
-    final draftStr = prefs.getString('complaint_offline_draft');
 
     List<dynamic> loadedCases = [];
     List<dynamic> loadedHearings = [];
@@ -95,7 +94,6 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
       setState(() {
         _cachedCases = loadedCases;
         _cachedHearings = loadedHearings;
-        _hasDraft = draftStr != null && draftStr.isNotEmpty;
         _isLoading = false;
       });
     }
@@ -217,11 +215,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
                 ),
                 TextButton.icon(
                   onPressed: () {
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    } else {
-                      context.go('/');
-                    }
+                    AppRouter.exitOfflineMode();
                   },
                   icon: const Icon(Icons.sync_rounded, size: 16),
                   label: Text(isFil ? 'Subukan Online' : 'Try Online', style: const TextStyle(fontSize: 12)),
@@ -232,30 +226,35 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
           ),
 
           // File Complaint Offline Quick Button
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: brand,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              icon: const Icon(Icons.edit_note_rounded, size: 22),
-              label: Text(
-                _hasDraft
-                    ? (isFil ? 'Ipagpatuloy ang Naka-save na Draft ng Reklamo' : 'Continue Saved Complaint Draft')
-                    : (isFil ? 'Gumawa ng Reklamo (Offline Draft)' : 'Draft a Complaint Offline'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FileComplaintScreen()),
-                );
-                _loadCachedData();
-              },
-            ),
+          Builder(
+            builder: (ctx) {
+              final hasDraft = ctx.watch<OfflineQueueRepository>().draftCount > 0;
+              return Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: brand,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.edit_note_rounded, size: 22),
+                  label: Text(
+                    hasDraft
+                        ? (isFil ? 'Ipagpatuloy ang Naka-save na Draft ng Reklamo' : 'Continue Saved Complaint Draft')
+                        : (isFil ? 'Gumawa ng Reklamo (Offline Draft)' : 'Draft a Complaint Offline'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FileComplaintScreen()),
+                    );
+                    _loadCachedData();
+                  },
+                ),
+              );
+            },
           ),
 
           // Main Tab Views
@@ -316,10 +315,14 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = _cachedCases[index];
-        final title = item['case_title'] ?? item['title'] ?? (isFil ? 'Walang Pamagat' : 'Untitled Case');
+        final complaint = item['complaint'] is Map ? item['complaint'] as Map : null;
+        final title = complaint?['type_name'] ??
+            item['case_title'] ??
+            item['title'] ??
+            (isFil ? 'Walang Pamagat' : 'Untitled Case');
         final caseNo = item['case_number'] ?? item['tracking_code'] ?? 'N/A';
         final status = item['status'] ?? 'Pending';
-        final date = item['created_at'] ?? item['date'] ?? '';
+        final date = (item['updated_at'] ?? complaint?['date_filed'] ?? item['created_at'] ?? item['date'] ?? '').toString();
 
         return Card(
           elevation: 2,
@@ -408,8 +411,12 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
       itemBuilder: (context, index) {
         final item = _cachedHearings[index];
         final hearingDate = item['hearing_date'] ?? item['scheduled_at'] ?? (isFil ? 'Walang Petsa' : 'No Date');
-        final caseTitle = item['case_title'] ?? (isFil ? 'Pagdinig' : 'Hearing');
+        final hearingTime = (item['hearing_time'] ?? '').toString();
+        final caseNo = (item['case_number'] ?? '').toString();
+        final caseTitle = item['case_title'] ??
+            (caseNo.isNotEmpty ? 'Case #$caseNo' : (isFil ? 'Pagdinig sa Barangay' : 'Barangay Hearing'));
         final venue = item['venue'] ?? 'Barangay Rosario Hall';
+        final dateLine = hearingTime.isNotEmpty ? '$hearingDate · $hearingTime' : '$hearingDate';
 
         return Card(
           elevation: 2,
@@ -420,7 +427,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
               child: Icon(Icons.gavel_rounded, color: context.brand),
             ),
             title: Text(caseTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${isFil ? "Petsa" : "Date"}: $hearingDate\n${isFil ? "Lugar" : "Venue"}: $venue'),
+            subtitle: Text('${isFil ? "Petsa" : "Date"}: $dateLine\n${isFil ? "Lugar" : "Venue"}: $venue'),
             isThreeLine: true,
           ),
         );
@@ -466,7 +473,7 @@ class _OfflineModeScreenState extends State<OfflineModeScreen> with SingleTicker
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               icon: const Icon(Icons.call, size: 16),
-              label: const Text('Tawag'),
+              label: Text(context.read<LocaleProvider>().isFilipino ? 'Tawag' : 'Call'),
               onPressed: () => _makeCall(contact['number']!),
             ),
           ),

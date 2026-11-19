@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart' show DioException;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -64,7 +65,6 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
   ];
 
   int _searchToken = 0;
-  bool _hasDraftRestored = false;
 
   @override
   void initState() {
@@ -195,10 +195,27 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
             }
           }
           _respondentUnknown = payload['respondent_unknown'] == true;
-          _hasDraftRestored = true;
+          if (payload['respondent_name'] != null && payload['respondent_id'] != null) {
+            final parts = payload['respondent_name'].toString().trim().split(RegExp(r'\s+'));
+            final fn = parts.isNotEmpty ? parts.first : payload['respondent_name'].toString();
+            final ln = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+            _selectedRespondent = ResidentModel(
+              id: payload['respondent_id'] is int
+                  ? payload['respondent_id'] as int
+                  : int.tryParse(payload['respondent_id'].toString()) ?? 0,
+              firstName: fn,
+              lastName: ln,
+              gender: '',
+              birthDate: DateTime(2000),
+              contact: '',
+              address: '',
+              zone: '',
+              createdAt: DateTime.now(),
+            );
+          }
         });
 
-        if (payload['respondent_id'] != null) {
+        if (payload['respondent_id'] != null && _selectedRespondent == null) {
           try {
             final resList = await context.read<ResidentProvider>().searchRespondents('');
             final found = resList.where((r) => r.id == payload['respondent_id']).firstOrNull;
@@ -224,8 +241,19 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         'latitude': _incidentPoint?.latitude,
         'longitude': _incidentPoint?.longitude,
         'respondent_id': _selectedRespondent?.id,
+        'respondent_name': _selectedRespondent != null
+            ? '${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName}'.trim()
+            : null,
         'respondent_unknown': _respondentUnknown,
       };
+
+      final savedPaths = kIsWeb
+          ? <String>[]
+          : _selectedFiles
+              .map((f) => f.path)
+              .whereType<String>()
+              .where((p) => p.isNotEmpty)
+              .toList();
 
       final item = OfflineQueueItem(
         id: _currentDraftId ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -233,6 +261,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         ownerId: authProvider.user?.id,
         ownerName: authProvider.user?.name,
         payload: payload,
+        evidencePaths: savedPaths,
         state: 'draft',
         deviceTime: DateTime.now(),
       );
@@ -241,12 +270,15 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
       if (showNotice && mounted) {
         final hasNarrative = _narrativeController.text.trim().isNotEmpty;
+        final isFil = context.read<LocaleProvider>().isFilipino;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               hasNarrative
-                  ? 'Complaint draft saved offline safely!'
-                  : 'Draft saved! Paalala: Lagyan ng salaysay bago ito tuluyang i-submit.',
+                  ? (isFil ? 'Matagumpay na na-save ang draft offline!' : 'Complaint draft saved offline safely!')
+                  : (isFil
+                      ? 'Na-save ang draft! Paalala: Lagyan ng salaysay bago ito tuluyang i-submit.'
+                      : 'Draft saved! Reminder: Add a complaint narrative before submitting.'),
             ),
             backgroundColor: hasNarrative ? Colors.green : Colors.orange.shade800,
             behavior: SnackBarBehavior.floating,
@@ -262,8 +294,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
     try {
       if (_currentDraftId != null) {
         await context.read<OfflineQueueRepository>().delete(_currentDraftId!);
+        _currentDraftId = null;
       }
-      setState(() => _hasDraftRestored = false);
     } catch (_) {}
   }
 
@@ -423,6 +455,20 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
       await _clearDraft();
 
       if (mounted) {
+        final isFil = context.read<LocaleProvider>().isFilipino;
+        if (failedFiles.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isFil
+                    ? 'Naihain ang reklamo, pero nabigong i-upload ang: ${failedFiles.join(", ")}'
+                    : 'Complaint filed, but some files failed to upload: ${failedFiles.join(", ")}',
+              ),
+              backgroundColor: Colors.orange.shade800,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         // Navigate to ComplaintSubmittedScreen (Task 32)
         Navigator.pushReplacement(
           context,
@@ -431,7 +477,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
               complaintId: complaintId,
               category: _selectedCategory,
               respondentName: _respondentUnknown
-                  ? 'Hindi kilala / Unknown'
+                  ? (isFil ? 'Hindi kilala' : 'Unidentified / Unknown')
                   : '${_selectedRespondent!.firstName} ${_selectedRespondent!.lastName}',
               location: _locationController.text.trim(),
               incidentDate: DateFormat('MMM dd, yyyy').format(_incidentDate),
@@ -582,7 +628,9 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Step ${_currentStep + 1} of 5: ${stepTitles[_currentStep]}',
+                          isFil
+                              ? 'Hakbang ${_currentStep + 1} ng 5: ${stepTitles[_currentStep]}'
+                              : 'Step ${_currentStep + 1} of 5: ${stepTitles[_currentStep]}',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w800,
                             color: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -829,7 +877,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               prefixIcon: const Icon(Icons.category_outlined),

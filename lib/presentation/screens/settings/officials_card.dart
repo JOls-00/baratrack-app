@@ -200,7 +200,7 @@ class _OfficialDialogState extends State<_OfficialDialog> {
                     backgroundColor: Colors.grey.shade200,
                     backgroundImage: _photo?.bytes != null
                         ? MemoryImage(_photo!.bytes!)
-                        : (hasExisting ? NetworkImage(o!.photoUrl) : null) as ImageProvider?,
+                        : (hasExisting ? NetworkImage(o.photoUrl) : null) as ImageProvider?,
                     child: (_photo == null && !hasExisting) ? const Icon(Icons.person, size: 34) : null,
                   ),
                   const SizedBox(width: 14),
@@ -213,7 +213,7 @@ class _OfficialDialogState extends State<_OfficialDialog> {
                           icon: const Icon(Icons.photo_camera_outlined, size: 18),
                           label: const Text('Photo'),
                         ),
-                        if (o != null && o.hasPhoto || _photo != null)
+                        if ((o != null && o.hasPhoto && !_removePhoto) || _photo != null)
                           TextButton(
                             onPressed: _saving
                                 ? null

@@ -50,7 +50,27 @@ class _HearingsManagementScreenState extends State<HearingsManagementScreen> {
                 : RefreshIndicator(
                     onRefresh: () => hearingProvider.fetchHearings(status: _selectedFilter),
                     child: hearingProvider.hearings.isEmpty
-                        ? _buildEmptyState(theme)
+                        ? (hearingProvider.error != null
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  const SizedBox(height: 120),
+                                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                  const SizedBox(height: 12),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Text('Failed to load hearings.\n${hearingProvider.error}', textAlign: TextAlign.center),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Center(
+                                    child: ElevatedButton(
+                                      onPressed: () => hearingProvider.fetchHearings(status: _selectedFilter),
+                                      child: const Text('Retry'),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : _buildEmptyState(theme))
                         : _buildHearingsList(hearingProvider.hearings),
                   ),
           ),
@@ -123,7 +143,7 @@ class _HearingsManagementScreenState extends State<HearingsManagementScreen> {
                             const SizedBox(width: 12),
                             const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
                             const SizedBox(width: 4),
-                            Text(hearing.venue, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                            Expanded(child: Text(hearing.venue, style: const TextStyle(color: Colors.grey, fontSize: 13), overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                       ],

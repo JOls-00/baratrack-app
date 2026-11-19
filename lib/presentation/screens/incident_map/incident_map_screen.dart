@@ -308,7 +308,7 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                                   ? 'Walang reklamong may pin sa napiling petsa.\nLalabas dito ang mga bagong reklamo na may lokasyon.'
                                   : 'No pinned complaints for the selected dates.\nNew reports with a map location will appear here.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey.shade700),
+                              style: TextStyle(color: Theme.of(context).hintColor),
                             ),
                           ),
                         ),
@@ -317,8 +317,10 @@ class _IncidentMapScreenState extends State<IncidentMapScreen> {
                   if (_selected != null)
                     Positioned(
                       right: 12,
-                      top: 12,
-                      width: 280,
+                      left: MediaQuery.of(context).size.width < 600 ? 12 : null,
+                      top: MediaQuery.of(context).size.width < 600 ? null : 12,
+                      bottom: MediaQuery.of(context).size.width < 600 ? 12 : null,
+                      width: MediaQuery.of(context).size.width < 600 ? null : 280,
                       child: Card(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -380,7 +382,7 @@ class _PinLabel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(pin.typeName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+          Text(pin.typeName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.black87)),
           if (showName && pin.complainantName.isNotEmpty)
             Text(pin.complainantName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
         ],

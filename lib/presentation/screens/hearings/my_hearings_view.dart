@@ -36,7 +36,12 @@ class _MyHearingsViewState extends State<MyHearingsView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('My Hearing Schedules', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              const Expanded(
+                child: Text(
+                  'My Hearing Schedules',
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Refresh Hearings',

@@ -550,7 +550,7 @@ class _DashboardViewState extends State<DashboardView> {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              hearing.hearingTime.isNotEmpty ? hearing.hearingTime : 'Oras N/A',
+              hearing.hearingTime.isNotEmpty ? hearing.hearingTime : (isTagalog ? 'Oras N/A' : 'Time N/A'),
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 12,
@@ -750,7 +750,7 @@ class _DashboardViewState extends State<DashboardView> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => context.go('/cases'),
+                    onPressed: () => context.go('/complaints-inbox'),
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('New Blotter Entry', style: TextStyle(fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
@@ -780,7 +780,7 @@ class _DashboardViewState extends State<DashboardView> {
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
-                  onPressed: () => context.go('/cases'),
+                  onPressed: () => context.go('/complaints-inbox'),
                   icon: const Icon(Icons.add),
                   label: const Text('New Blotter Entry'),
                   style: ElevatedButton.styleFrom(backgroundColor: on, foregroundColor: primary),

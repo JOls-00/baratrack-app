@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
+import '../../../config/app_constants.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/utils/validators.dart';
 
@@ -40,6 +42,7 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         await context.read<AuthProvider>().refreshProfile();
+        if (!mounted) return;
         _updateControllers();
         setState(() => _isInitialLoad = false);
       }
@@ -136,13 +139,15 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
       );
 
       try {
+        final authProvider = context.read<AuthProvider>();
         String? avatarBase64;
         if (_pickedImage != null) {
           final bytes = await _pickedImage!.readAsBytes();
           avatarBase64 = base64Encode(bytes);
         }
 
-        await context.read<AuthProvider>().updateProfile(
+        if (!mounted) return;
+        await authProvider.updateProfile(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           contact: _phoneController.text.trim(),
@@ -209,7 +214,7 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
                         _pair(
                           narrow,
                           _buildTextField('Full Name', _nameController, Icons.person_outline, (v) => Validators.validateRequired(v, 'Name')),
-                          _buildTextField('Email Address', _emailController, Icons.email_outlined, Validators.validateEmail),
+                          _buildTextField('Email Address (Read-only)', _emailController, Icons.email_outlined, null, readOnly: true),
                         ),
                         const SizedBox(height: 24),
                         _pair(
@@ -252,7 +257,17 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                            TextButton(
+                              onPressed: () {
+                                _updateControllers();
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                } else {
+                                  context.go('/');
+                                }
+                              },
+                              child: const Text('Cancel'),
+                            ),
                             const SizedBox(width: 16),
                             ElevatedButton(
                               onPressed: _saveChanges,
@@ -287,7 +302,9 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
     if (_pickedImage != null) {
       avatarImage = kIsWeb ? NetworkImage(_pickedImage!.path) : FileImage(File(_pickedImage!.path)) as ImageProvider;
     } else if (user?.profilePicture != null && user!.profilePicture!.isNotEmpty) {
-      avatarImage = NetworkImage(user.profilePicture!);
+      final raw = user.profilePicture!;
+      final resolvedUrl = raw.startsWith('http') ? raw : '${AppConstants.baseUrl}/$raw';
+      avatarImage = NetworkImage(resolvedUrl);
     }
 
     return Column(
@@ -339,7 +356,13 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, String? Function(String?)? validator) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+    String? Function(String?)? validator, {
+    bool readOnly = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -347,6 +370,7 @@ class _ProfileEditorViewState extends State<ProfileEditorView> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          readOnly: readOnly,
           decoration: InputDecoration(prefixIcon: Icon(icon, size: 20)),
           validator: validator,
         ),

@@ -101,9 +101,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  void _load() {
-    context.read<ComplaintProvider>().fetchMyComplaints();
-    context.read<HearingProvider>().fetchHearings();
+  Future<void> _load() async {
+    await Future.wait([
+      context.read<ComplaintProvider>().fetchMyComplaints(),
+      context.read<HearingProvider>().fetchHearings(),
+    ]);
   }
 
   Map<String, List<_Ev>> _group(List<ComplaintModel> cs, List<HearingModel> hs, bool dark) {
@@ -209,7 +211,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final calendar = _calendarCard(context, wide);
       final panel = _panelCard(context);
       return RefreshIndicator(
-        onRefresh: () async => _load(),
+        onRefresh: _load,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.all(wide ? 24 : 12),

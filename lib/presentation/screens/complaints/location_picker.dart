@@ -115,7 +115,7 @@ class _LocationPickerState extends State<LocationPicker> {
       final p = LatLng(pos.latitude, pos.longitude);
       widget.onChanged(p);
       _scheduleLookup(p);
-      _map.move(p, 17);
+      if (!widget.hidePinMap) _map.move(p, 17);
       if (mounted) {
         final filNow = context.read<LocaleProvider>().isFilipino;
         setState(() {

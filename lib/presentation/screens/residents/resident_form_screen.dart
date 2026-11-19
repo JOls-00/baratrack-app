@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import '../../../data/models/resident_model.dart';
 import '../../providers/resident_provider.dart';
 import '../../../core/utils/validators.dart';
-import '../../../config/app_theme.dart';
 
 class ResidentFormScreen extends StatefulWidget {
   final ResidentModel? resident;
@@ -42,9 +41,9 @@ class _ResidentFormScreenState extends State<ResidentFormScreen> {
       _contactController.text = r.contact ?? '';
       _emailController.text = r.email ?? '';
       _addressController.text = r.address ?? '';
-      _gender = r.gender ?? 'Male';
-      _zone = r.zone ?? '1';
-      _status = r.status;
+      _gender = (r.gender ?? '').isEmpty ? 'Male' : r.gender!;
+      _zone = (r.zone ?? '').isEmpty ? '1' : r.zone!;
+      _status = r.status.isEmpty ? 'Active' : r.status;
       _birthDate = r.birthDate;
       _userId = r.userId;
     }
@@ -155,9 +154,9 @@ class _ResidentFormScreenState extends State<ResidentFormScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _gender,
+                      initialValue: _gender,
                       decoration: const InputDecoration(labelText: 'Gender'),
-                      items: ['Male', 'Female', 'Other'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                      items: {'Male', 'Female', 'Other', _gender}.where((g) => g.isNotEmpty).map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
                       onChanged: (v) => setState(() => _gender = v!),
                     ),
                   ),
@@ -194,9 +193,9 @@ class _ResidentFormScreenState extends State<ResidentFormScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _zone,
+                      initialValue: _zone,
                       decoration: const InputDecoration(labelText: 'Zone / Purok'),
-                      items: ['1', '2', '3', '4', '5', '6', '7'].map((z) => DropdownMenuItem(value: z, child: Text('Zone $z'))).toList(),
+                      items: {'1', '2', '3', '4', '5', '6', '7', _zone}.where((z) => z.isNotEmpty).map((z) => DropdownMenuItem(value: z, child: Text('Zone $z'))).toList(),
                       onChanged: (v) => setState(() => _zone = v!),
                     ),
                   ),
@@ -216,9 +215,9 @@ class _ResidentFormScreenState extends State<ResidentFormScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(labelText: 'Status'),
-                items: ['Active', 'Deceased', 'Relocated'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                items: {'Active', 'Deceased', 'Relocated', _status}.where((s) => s.isNotEmpty).map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                 onChanged: (v) => setState(() => _status = v!),
               ),
               const SizedBox(height: 40),

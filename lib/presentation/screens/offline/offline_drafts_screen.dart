@@ -1,17 +1,13 @@
-import 'dart:io';
-import 'package:dio/dio.dart' show DioException;
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/network/connectivity_provider.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/sync/sync_manager.dart';
 import '../../../data/models/offline_queue_item.dart';
 import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/complaint_provider.dart';
-import '../../providers/evidence_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../complaints/file_complaint_screen.dart';
 import '../profile/resident_registration_screen.dart';
@@ -156,13 +152,14 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
     final narrative = payload['narrative']?.toString() ?? '';
     final location = payload['location']?.toString() ?? 'No location specified';
     final formattedDate = DateFormat('MMM d, yyyy · h:mm a').format(item.deviceTime);
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: isSelected ? context.brand : Colors.grey.shade200,
+          color: isSelected ? context.brand : Theme.of(context).dividerColor,
           width: isSelected ? 1.8 : 1,
         ),
       ),
@@ -214,20 +211,20 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
+                  color: dark ? Colors.amber.shade900.withValues(alpha: 0.25) : Colors.amber.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade300),
+                  border: Border.all(color: dark ? Colors.amber.shade700 : Colors.amber.shade300),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, size: 16, color: Colors.amber.shade900),
+                    Icon(Icons.warning_amber_rounded, size: 16, color: dark ? Colors.amber.shade300 : Colors.amber.shade900),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         isFil
                             ? 'Walang salaysay — I-tap ang "Edit" para lagyan ng detalye bago i-submit'
                             : 'No narrative — Tap "Edit" to provide details before submitting',
-                        style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 12, color: dark ? Colors.amber.shade200 : Colors.amber.shade900, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -251,18 +248,18 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: dark ? Colors.blue.shade900.withValues(alpha: 0.25) : Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blue.shade200),
+                      border: Border.all(color: dark ? Colors.blue.shade700 : Colors.blue.shade200),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.attach_file, size: 12, color: Colors.blue.shade800),
+                        Icon(Icons.attach_file, size: 12, color: dark ? Colors.blue.shade300 : Colors.blue.shade800),
                         const SizedBox(width: 2),
                         Text(
                           '${item.evidencePaths.length}',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dark ? Colors.blue.shade200 : Colors.blue.shade900),
                         ),
                       ],
                     ),
@@ -276,18 +273,18 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: dark ? Colors.red.shade900.withValues(alpha: 0.25) : Colors.red.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
+                  border: Border.all(color: dark ? Colors.red.shade700 : Colors.red.shade200),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, size: 16, color: Colors.red.shade800),
+                    Icon(Icons.error_outline, size: 16, color: dark ? Colors.red.shade300 : Colors.red.shade800),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         item.lastError!,
-                        style: TextStyle(fontSize: 11.5, color: Colors.red.shade900),
+                        style: TextStyle(fontSize: 11.5, color: dark ? Colors.red.shade200 : Colors.red.shade900),
                       ),
                     ),
                   ],
@@ -426,6 +423,7 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
   }
 
   Future<void> _submitSelected(List<OfflineQueueItem> selectedItems) async {
+    final isFil = context.read<LocaleProvider>().isFilipino;
     final connectivity = context.read<ConnectivityProvider>();
     if (!connectivity.isOnline || AppRouter.userChoseOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -440,123 +438,49 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
     final auth = context.read<AuthProvider>();
     final user = auth.user;
     if (user != null && user.role == 'Resident' && user.residentId == null) {
-      final proceed = await showDialog<bool>(
+      await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Resident Profile Required'),
-          content: const Text('You need to complete your resident verification profile before submitting drafts to the Barangay.'),
+          title: Text(isFil ? 'Kailangan ang Resident Profile' : 'Resident Profile Required'),
+          content: Text(
+            isFil
+                ? 'Kumpletuhin muna ang iyong resident verification profile bago magsumite ng drafts.'
+                : 'You need to complete your resident verification profile before submitting drafts to the Barangay.',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Later')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(isFil ? 'Mamaya' : 'Later'),
+            ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx, true);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ResidentRegistrationScreen()));
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ResidentRegistrationScreen()),
+                );
               },
-              child: const Text('Complete Profile'),
+              child: Text(isFil ? 'Kumpletuhin ang Profile' : 'Complete Profile'),
             ),
           ],
         ),
       );
-      if (proceed != true) return;
+      if (!mounted || auth.user?.residentId == null) return;
     }
 
     setState(() => _isSyncing = true);
-    final queueRepo = context.read<OfflineQueueRepository>();
-    final complaintProvider = context.read<ComplaintProvider>();
-    final evidenceProvider = context.read<EvidenceProvider>();
 
     int successCount = 0;
     int failureCount = 0;
 
     for (final item in selectedItems) {
-      if (item.type == 'complaint') {
-        try {
-          final p = item.payload;
-          final detailsText = (p['narrative']?.toString() ?? p['details']?.toString() ?? '').trim();
-          final locationText = (p['location']?.toString() ?? '').trim();
-
-          if (detailsText.isEmpty) {
-            failureCount++;
-            await queueRepo.updateState(
-              item.id,
-              'failed',
-              error: 'Kulang ang salaysay (Details is required). I-tap ang "Edit" para lagyan ng detalye bago i-submit.',
-            );
-            continue;
-          }
-
-          if (locationText.isEmpty) {
-            failureCount++;
-            await queueRepo.updateState(
-              item.id,
-              'failed',
-              error: 'Kulang ang lokasyon. I-tap ang "Edit" para lagyan ng lugar bago i-submit.',
-            );
-            continue;
-          }
-
-          await queueRepo.updateState(item.id, 'sending');
-          final dateStr = p['incident_date']?.toString() ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
-          final timeStr = p['incident_time']?.toString() ?? '12:00:00';
-
-          final complaintId = await complaintProvider.submitComplaint(
-            complainantId: user?.residentId,
-            respondentId: p['respondent_id'] is int ? p['respondent_id'] as int : null,
-            category: p['category']?.toString() ?? 'Others',
-            location: locationText,
-            latitude: (p['latitude'] as num?)?.toDouble(),
-            longitude: (p['longitude'] as num?)?.toDouble(),
-            date: dateStr,
-            time: timeStr,
-            details: detailsText,
-            clientUuid: item.id,
-          );
-
-          // Upload evidence files
-          for (final path in item.evidencePaths) {
-            try {
-              final file = File(path);
-              if (await file.exists()) {
-                final bytes = await file.readAsBytes();
-                final pFile = PlatformFile(
-                  name: file.uri.pathSegments.last,
-                  size: bytes.length,
-                  path: file.path,
-                  bytes: bytes,
-                );
-                await evidenceProvider.uploadEvidence(complaintId: complaintId, file: pFile);
-              }
-            } catch (evErr) {
-              debugPrint('[OfflineDraftsScreen] Evidence upload warning: $evErr');
-            }
-          }
-
-          await queueRepo.updateState(item.id, 'synced');
-          await queueRepo.delete(item.id);
-          _selectedIds.remove(item.id);
-          successCount++;
-        } catch (e) {
-          failureCount++;
-          String friendlyError;
-          if (e is DioException) {
-            final data = e.response?.data;
-            if (data is Map && data['message'] is String) {
-              friendlyError = data['message'] as String;
-            } else if (e.message != null && e.message!.isNotEmpty) {
-              friendlyError = e.message!;
-            } else {
-              friendlyError = 'Network error (${e.response?.statusCode ?? 'no response'})';
-            }
-          } else {
-            friendlyError = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
-          }
-
-          if (friendlyError.contains("'details' is required")) {
-            friendlyError = 'Kulang ang salaysay (Details is required). I-tap ang "Edit" para punan bago i-submit.';
-          }
-
-          await queueRepo.updateState(item.id, 'failed', error: friendlyError);
-        }
+      if (!mounted) return;
+      final ok = await SyncManager.syncSingleItem(context, item);
+      if (ok) {
+        _selectedIds.remove(item.id);
+        successCount++;
+      } else {
+        failureCount++;
       }
     }
 
@@ -565,8 +489,8 @@ class _OfflineDraftsScreenState extends State<OfflineDraftsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(failureCount == 0
-              ? 'Successfully synced $successCount item(s)!'
-              : 'Synced $successCount item(s). $failureCount failed to sync.'),
+              ? (isFil ? 'Matagumpay na na-sync ang $successCount item!' : 'Successfully synced $successCount item(s)!')
+              : (isFil ? 'Na-sync: $successCount. Nabigo: $failureCount.' : 'Synced $successCount item(s). $failureCount failed to sync.')),
           backgroundColor: failureCount == 0 ? Colors.green : Colors.orange,
         ),
       );

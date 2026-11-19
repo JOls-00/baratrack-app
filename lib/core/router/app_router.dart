@@ -35,8 +35,9 @@ import '../../presentation/screens/offline/offline_mode_screen.dart';
 import '../../presentation/screens/offline/offline_drafts_screen.dart';
 
 class AppRouter {
-  // Stable notifier for router refreshes
+  // Stable notifiers for router refreshes & role guards
   static final authNotifier = ValueNotifier<AuthStatus>(AuthStatus.unauthenticated);
+  static final roleNotifier = ValueNotifier<String?>(null);
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static final ValueNotifier<bool> offlineNotifier = ValueNotifier<bool>(false);
   static bool get userChoseOffline => offlineNotifier.value;
@@ -171,6 +172,24 @@ class AppRouter {
         return '/';
       }
 
+      // Role-based route guards
+      final role = roleNotifier.value;
+      const staffPaths = [
+        '/complaints-inbox',
+        '/cases',
+        '/residents',
+        '/hearings-mgmt',
+        '/reports',
+        '/incident-map',
+      ];
+      if (role == 'Resident' &&
+          (path == '/users' || staffPaths.any((p) => path == p || path.startsWith('$p/')))) {
+        return '/';
+      }
+      if (role != null && role != 'Admin' && path == '/users') {
+        return '/';
+      }
+
       return null;
     },
     routes: [
@@ -242,7 +261,10 @@ class AppRouter {
           GoRoute(
             path: '/cases/:id',
             pageBuilder: (context, state) {
-              final id = int.parse(state.pathParameters['id']!);
+              final id = int.tryParse(state.pathParameters['id'] ?? '');
+              if (id == null) {
+                return _smoothPage(state, const CaseListScreen());
+              }
               return _smoothPage(state, CaseDetailScreen(caseId: id));
             },
           ),
@@ -257,7 +279,10 @@ class AppRouter {
                 GoRoute(
                   path: ':id',
                   pageBuilder: (context, state) {
-                    final id = int.parse(state.pathParameters['id']!);
+                    final id = int.tryParse(state.pathParameters['id'] ?? '');
+                    if (id == null) {
+                      return _smoothPage(state, const ResidentsListScreen());
+                    }
                     return _smoothPage(state, ResidentDetailScreen(residentId: id));
                   },
                 ),

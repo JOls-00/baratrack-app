@@ -204,7 +204,8 @@ class BarangayApp extends StatelessWidget {
                         draftCount: queueRepo.draftCount,
                         onProceed: () {
                           AppRouter.exitOfflineMode();
-                          SyncManager.handleProceedToOnline(context);
+                          final navCtx = AppRouter.navigatorKey.currentContext ?? context;
+                          SyncManager.handleProceedToOnline(navCtx);
                         },
                       ),
                     Expanded(child: child!),

@@ -39,6 +39,16 @@ class _ResidentRegistrationScreenState extends State<ResidentRegistrationScreen>
     }
   }
 
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _middleNameController.dispose();
+    _contactController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     if (_formKey.currentState!.validate() && _birthDate != null) {
       setState(() => _isLoading = true);
@@ -136,7 +146,7 @@ class _ResidentRegistrationScreenState extends State<ResidentRegistrationScreen>
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _gender,
+                      initialValue: _gender,
                       decoration: const InputDecoration(labelText: 'Gender'),
                       items: ['Male', 'Female', 'Other'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
                       onChanged: (v) => setState(() => _gender = v!),
@@ -175,7 +185,7 @@ class _ResidentRegistrationScreenState extends State<ResidentRegistrationScreen>
                   const SizedBox(width: 16),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _zone,
+                      initialValue: _zone,
                       decoration: const InputDecoration(labelText: 'Zone / Purok'),
                       items: ['1', '2', '3', '4', '5', '6', '7'].map((z) => DropdownMenuItem(value: z, child: Text('Zone $z'))).toList(),
                       onChanged: (v) => setState(() => _zone = v!),

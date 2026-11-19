@@ -52,7 +52,7 @@ class _AdminPinDialogState extends State<AdminPinDialog> {
       setState(() {
         _isChecking = false;
         _hasError = true;
-        _errorMessage = 'Incorrect PIN. Try again or check default (1234).';
+        _errorMessage = 'Incorrect PIN. Please try again.';
       });
     }
   }

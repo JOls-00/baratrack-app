@@ -7,6 +7,7 @@ import '../../../config/app_theme.dart';
 import '../../../config/app_constants.dart';
 import '../../../data/models/case_model.dart';
 import '../../../data/repositories/evidence_repository.dart';
+import '../../providers/locale_provider.dart';
 
 class ComplaintDetailsDialog extends StatefulWidget {
   final ComplaintModel complaint;
@@ -66,49 +67,60 @@ class _ComplaintDetailsDialogState extends State<ComplaintDetailsDialog> {
   @override
   Widget build(BuildContext context) {
     final complaint = widget.complaint;
-    final displayId = complaint.caseNumber ?? "CMP-${complaint.id.toString().padLeft(3, '0')}";
+    final displayId = complaint.caseNumber ?? "CMP-${complaint.dateFiled.year}-${complaint.id.abs().toString().padLeft(5, '0')}";
     final isCase = complaint.caseId != null;
+    final theme = Theme.of(context);
+    final isFil = context.watch<LocaleProvider>().isFilipino;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(isCase ? 'Official Case #$displayId' : 'Pending Complaint #$displayId', 
-                        style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 6),
-                      InkWell(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: displayId));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Kopyado na sa clipboard ang Tracking ID!'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.all(2.0),
-                          child: Icon(Icons.copy, size: 14, color: AppTheme.textSecondary),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            isCase
+                                ? (isFil ? 'Opisyal na Kaso #$displayId' : 'Official Case #$displayId')
+                                : (isFil ? 'Nakabinbing Reklamo #$displayId' : 'Pending Complaint #$displayId'),
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.bold),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  Text(complaint.typeName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: context.brand)),
-                ],
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: displayId));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(isFil ? 'Kopyado na sa clipboard ang Tracking ID!' : 'Tracking ID copied to clipboard!'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(2.0),
+                            child: Icon(Icons.copy, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(complaint.typeName, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.brand)),
+                  ],
+                ),
               ),
               IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ],
@@ -207,7 +219,14 @@ class _ComplaintDetailsDialogState extends State<ComplaintDetailsDialog> {
                       decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                       child: Text(value, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 13)),
                     )
-                  : Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
+                  : Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
               ],
             ),
           ),

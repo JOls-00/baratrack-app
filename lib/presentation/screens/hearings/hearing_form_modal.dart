@@ -43,10 +43,12 @@ class _HearingFormModalState extends State<HearingFormModal> {
     _selectedCase = widget.prefilledCase;
     if (widget.hearing != null) {
       _selectedDate = widget.hearing!.hearingDate;
-      final parts = widget.hearing!.hearingTime.split(':');
-      _selectedTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-      _selectedVenue = widget.hearing!.venue;
-      _status = widget.hearing!.status;
+      _selectedTime = _parseTimeSafely(widget.hearing!.hearingTime);
+      _selectedVenue = widget.hearing!.venue.isNotEmpty ? widget.hearing!.venue : 'Barangay Hall';
+      if (!_venues.contains(_selectedVenue)) {
+        _venues.add(_selectedVenue);
+      }
+      _status = _statuses.contains(widget.hearing!.status) ? widget.hearing!.status : 'Scheduled';
       _notesController.text = widget.hearing!.notes ?? '';
     } else {
       _selectedDate = DateTime.now().add(const Duration(days: 1));
@@ -54,6 +56,26 @@ class _HearingFormModalState extends State<HearingFormModal> {
       _selectedVenue = 'Barangay Hall';
       _status = 'Scheduled';
     }
+  }
+
+  TimeOfDay _parseTimeSafely(String raw) {
+    final m = RegExp(r'^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$', caseSensitive: false)
+        .firstMatch(raw.trim());
+    if (m != null) {
+      var h = int.tryParse(m.group(1)!) ?? 10;
+      final min = int.tryParse(m.group(2)!) ?? 0;
+      final ap = m.group(3)?.toUpperCase();
+      if (ap == 'PM' && h < 12) h += 12;
+      if (ap == 'AM' && h == 12) h = 0;
+      return TimeOfDay(hour: h.clamp(0, 23), minute: min.clamp(0, 59));
+    }
+    return const TimeOfDay(hour: 10, minute: 0);
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
   }
 
   Future<void> _submit() async {
@@ -134,12 +156,12 @@ class _HearingFormModalState extends State<HearingFormModal> {
 
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
@@ -155,8 +177,11 @@ class _HearingFormModalState extends State<HearingFormModal> {
                 Autocomplete<CaseModel>(
                   displayStringForOption: (c) => 'Case #${c.caseNumber} - ${c.complaint?.typeName ?? "General"}',
                   optionsBuilder: (val) {
-                    if (val.text.isEmpty) return const Iterable.empty();
-                    return cases.where((c) => c.caseNumber.contains(val.text));
+                    final q = val.text.trim().toLowerCase();
+                    if (q.isEmpty) return const Iterable.empty();
+                    return cases.where((c) =>
+                        c.caseNumber.toLowerCase().contains(q) ||
+                        (c.complaint?.typeName.toLowerCase().contains(q) ?? false));
                   },
                   onSelected: (c) => setState(() => _selectedCase = c),
                   fieldViewBuilder: (context, ctrl, focus, onSubmitted) {
@@ -185,8 +210,8 @@ class _HearingFormModalState extends State<HearingFormModal> {
                           onTap: () async {
                             final date = await showDatePicker(
                               context: context,
-                              initialDate: _selectedDate,
-                              firstDate: DateTime.now(),
+                              initialDate: _selectedDate.isBefore(DateTime(2020)) ? DateTime.now() : _selectedDate,
+                              firstDate: isEdit ? DateTime(2020) : DateTime.now(),
                               lastDate: DateTime.now().add(const Duration(days: 365)),
                             );
                             if (date != null) setState(() => _selectedDate = date);
@@ -226,7 +251,7 @@ class _HearingFormModalState extends State<HearingFormModal> {
               const Text('Venue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedVenue,
+                initialValue: _selectedVenue,
                 items: _venues.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                 onChanged: (v) => setState(() => _selectedVenue = v!),
               ),
@@ -236,7 +261,7 @@ class _HearingFormModalState extends State<HearingFormModal> {
                 const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _status,
+                  initialValue: _status,
                   items: _statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                   onChanged: (v) => setState(() => _status = v!),
                 ),

@@ -138,6 +138,7 @@ class _MainShellState extends State<MainShell> {
   (_NavItem, List<_NavSection>) _navMenu(BuildContext context, bool isResident) {
     final locale = context.watch<LocaleProvider>();
     final isFil = locale.isFilipino;
+    final role = context.watch<AuthProvider>().user?.role;
 
     if (isResident) {
       final top = _NavItem(
@@ -197,7 +198,7 @@ class _MainShellState extends State<MainShell> {
         ),
         _NavSection(
           id: 'account',
-          title: 'ACCOUNT',
+          title: isFil ? 'AKAWNT' : 'ACCOUNT',
           items: [
             _NavItem(
               index: 7,
@@ -288,12 +289,13 @@ class _MainShellState extends State<MainShell> {
             icon: Icons.bar_chart_outlined,
             selectedIcon: Icons.bar_chart_rounded,
           ),
-          _NavItem(
-            index: 9,
-            label: isFil ? 'Mga Gumagamit' : 'Users',
-            icon: Icons.manage_accounts_outlined,
-            selectedIcon: Icons.manage_accounts_rounded,
-          ),
+          if (role == 'Admin')
+            _NavItem(
+              index: 9,
+              label: isFil ? 'Mga Gumagamit' : 'Users',
+              icon: Icons.manage_accounts_outlined,
+              selectedIcon: Icons.manage_accounts_rounded,
+            ),
           _NavItem(
             index: 10,
             label: locale.tr('settings_title'),
@@ -1065,7 +1067,9 @@ class _MainShellState extends State<MainShell> {
           : null,
     );
     final profileRoute = role == 'Resident' ? '/profile' : '/settings';
-    final profileLabel = isFil ? 'Aking Profile' : 'My Profile';
+    final profileLabel = role == 'Resident'
+        ? (isFil ? 'Aking Profile' : 'My Profile')
+        : context.read<LocaleProvider>().tr('settings_title');
     final logoutLabel = isFil ? 'Mag-sign Out' : 'Logout';
 
     if (MediaQuery.of(context).size.width <= 700) {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import '../../providers/theme_provider.dart';
 import '../../../config/app_constants.dart';
 import '../../../config/app_theme.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/repositories/offline_queue_repository.dart';
 import '../../providers/version_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../../core/localization/app_strings.dart';
@@ -37,10 +39,21 @@ class _SettingsViewState extends State<SettingsView> {
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().user;
-    _nameController = TextEditingController(text: user?.name);
-    _emailController = TextEditingController(text: user?.email);
-    _phoneController = TextEditingController(text: user?.contactNumber ?? '+63 912 345 6789');
-    _addressController = TextEditingController(text: user?.address ?? 'Purok 4, Brgy. Central');
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _phoneController = TextEditingController(text: user?.contactNumber ?? '');
+    _addressController = TextEditingController(text: user?.address ?? '');
+  }
+
+  void _resetFields() {
+    final user = context.read<AuthProvider>().user;
+    setState(() {
+      _nameController.text = user?.name ?? '';
+      _emailController.text = user?.email ?? '';
+      _phoneController.text = user?.contactNumber ?? '';
+      _addressController.text = user?.address ?? '';
+      _pickedImage = null;
+    });
   }
 
   @override
@@ -107,13 +120,15 @@ class _SettingsViewState extends State<SettingsView> {
       final isFil = context.read<LocaleProvider>().isFilipino;
 
       try {
+        final authProvider = context.read<AuthProvider>();
         String? avatarBase64;
         if (_pickedImage != null) {
           final bytes = await _pickedImage!.readAsBytes();
           avatarBase64 = base64Encode(bytes);
         }
 
-        await context.read<AuthProvider>().updateProfile(
+        if (!mounted) return;
+        await authProvider.updateProfile(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           contact: _phoneController.text.trim(),
@@ -357,7 +372,9 @@ class _SettingsViewState extends State<SettingsView> {
 
                           ImageProvider? imageProvider;
                           if (_pickedImage != null) {
-                            imageProvider = FileImage(File(_pickedImage!.path));
+                            imageProvider = kIsWeb
+                                ? NetworkImage(_pickedImage!.path)
+                                : FileImage(File(_pickedImage!.path)) as ImageProvider;
                           } else if (avatarUrl != null && avatarUrl.isNotEmpty) {
                             imageProvider = NetworkImage(
                               avatarUrl.startsWith('http') ? avatarUrl : '${AppConstants.baseUrl}/$avatarUrl',
@@ -432,13 +449,13 @@ class _SettingsViewState extends State<SettingsView> {
                       _pair(
                         narrow,
                         _buildTextField('Full Name', _nameController, Icons.person_outline, (v) => Validators.validateRequired(v, 'Name')),
-                        _buildTextField('Email Address', _emailController, Icons.email_outlined, Validators.validateEmail),
+                        _buildTextField('Email Address (Read-only)', _emailController, Icons.email_outlined, null, readOnly: true),
                       ),
                       const SizedBox(height: 24),
                       _pair(
                         narrow,
-                        _buildTextField('Contact Number', _phoneController, Icons.phone_outlined, (v) => Validators.validateRequired(v, 'Phone')),
-                        _buildTextField('Home Address / Barangay Info', _addressController, Icons.location_on_outlined, (v) => Validators.validateRequired(v, 'Address')),
+                        _buildTextField('Contact Number', _phoneController, Icons.phone_outlined, (v) => Validators.validateRequired(v, 'Phone'), hint: 'e.g. 09171234567'),
+                        _buildTextField('Home Address / Barangay Info', _addressController, Icons.location_on_outlined, (v) => Validators.validateRequired(v, 'Address'), hint: 'e.g. Purok 4, Brgy. Rosario'),
                       ),
                       const SizedBox(height: 40),
                       const Divider(),
@@ -446,7 +463,7 @@ class _SettingsViewState extends State<SettingsView> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          OutlinedButton(onPressed: () {}, child: const Text('Cancel')),
+                          OutlinedButton(onPressed: _resetFields, child: const Text('Cancel')),
                           const SizedBox(width: 16),
                           ElevatedButton(
                             onPressed: _isSaving ? null : _saveProfile,
@@ -517,7 +534,46 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 48),
             Center(
               child: TextButton.icon(
-                onPressed: () => context.read<AuthProvider>().logout(),
+                onPressed: () async {
+                  final auth = context.read<AuthProvider>();
+                  final queueRepo = context.read<OfflineQueueRepository>();
+                  final isFil = context.read<LocaleProvider>().isFilipino;
+                  final user = auth.user;
+                  final draftsCount = user == null
+                      ? 0
+                      : queueRepo.items.where((d) => d.ownerId == null || d.ownerId == user.id).length;
+
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text(isFil ? 'Mag-sign Out?' : 'Sign Out?'),
+                      content: Text(
+                        draftsCount > 0
+                            ? (isFil
+                                ? 'Mayroon kang $draftsCount hindi pa naipapadalang draft. Mabubura ang lokal na pila kapag nag-sign out ka.'
+                                : 'You have $draftsCount unsent draft(s). Signing out clears local drafts on this device.')
+                            : (isFil
+                                ? 'Sigurado ka bang nais mong mag-sign out sa BaraTrack?'
+                                : 'Are you sure you want to sign out of BaraTrack?'),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: Text(isFil ? 'Kanselahin' : 'Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                          child: Text(isFil ? 'Mag-sign Out' : 'Sign Out'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    await queueRepo.clearAll();
+                    await auth.logout();
+                  }
+                },
                 icon: const Icon(Icons.logout, color: Colors.red),
                 label: const Text('Sign Out of BaraTrack System', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
               ),
@@ -539,11 +595,16 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildSectionHeader(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(left: 4.0, bottom: 16.0),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: isDark ? AppTheme.textPrimaryDark : AppTheme.textDark,
+        ),
       ),
     );
   }
@@ -581,7 +642,14 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, String? Function(String?)? validator) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+    String? Function(String?)? validator, {
+    bool readOnly = false,
+    String? hint,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -589,7 +657,8 @@ class _SettingsViewState extends State<SettingsView> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
-          decoration: InputDecoration(prefixIcon: Icon(icon, size: 20)),
+          readOnly: readOnly,
+          decoration: InputDecoration(prefixIcon: Icon(icon, size: 20), hintText: hint),
           validator: validator,
         ),
       ],

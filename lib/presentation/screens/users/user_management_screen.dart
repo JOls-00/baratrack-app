@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../../data/models/user_model.dart';
-import '../../../config/app_theme.dart';
+
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -53,8 +53,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
     }
   }
 
-  void _loadUsersForCurrentTab() {
-    context.read<UserProvider>().fetchUsers(status: _currentStatusFilter);
+  Future<void> _loadUsersForCurrentTab() {
+    return context.read<UserProvider>().fetchUsers(status: _currentStatusFilter);
   }
 
   Future<void> _approve(UserModel user) async {
@@ -135,13 +135,36 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
       body: userProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () async => _loadUsersForCurrentTab(),
+              onRefresh: _loadUsersForCurrentTab,
               child: userProvider.users.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No accounts found in this status.',
-                        style: TextStyle(color: theme.hintColor),
-                      ),
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        const SizedBox(height: 120),
+                        if (userProvider.error != null) ...[
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 12),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            userProvider.error != null
+                                ? 'Failed to load accounts.\n${userProvider.error}'
+                                : 'No accounts found in this status.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: theme.hintColor),
+                          ),
+                        ),
+                        if (userProvider.error != null) ...[
+                          const SizedBox(height: 12),
+                          Center(
+                            child: ElevatedButton(
+                              onPressed: _loadUsersForCurrentTab,
+                              child: const Text('Retry'),
+                            ),
+                          ),
+                        ],
+                      ],
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(vertical: 12),

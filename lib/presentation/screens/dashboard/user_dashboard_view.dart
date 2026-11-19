@@ -14,6 +14,8 @@ import '../../providers/locale_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../walkthrough/walkthrough_screen.dart';
 import '../complaints/file_complaint_screen.dart';
+import '../emergency/emergency_hotlines_modal.dart';
+import '../profile/resident_registration_screen.dart';
 
 /// Resident Home Screen (Task 27)
 /// Features:
@@ -98,19 +100,29 @@ class _UserDashboardViewState extends State<UserDashboardView> {
       }
     }
 
-    // Next upcoming hearing
+    final queueRepo = context.watch<OfflineQueueRepository>();
+    final liveDraftsCount = queueRepo.draftCount;
+    final effectiveDraftsCount = liveDraftsCount > 0 ? liveDraftsCount : _unsentDraftsCount;
+
+    // Next upcoming hearing (prefer Scheduled hearings from today onward)
     final hearingProvider = context.watch<HearingProvider>();
     final hearings = hearingProvider.hearings;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final upcomingScheduled = hearings.where((h) {
+      final hDay = DateTime(h.hearingDate.year, h.hearingDate.month, h.hearingDate.day);
+      return h.status.toLowerCase() == 'scheduled' && !hDay.isBefore(today);
+    }).toList();
     HearingModel? nextHearing;
-    final nowThreshold = DateTime.now().subtract(const Duration(hours: 4));
-    for (final h in hearings) {
-      if (h.hearingDate.isAfter(nowThreshold)) {
-        nextHearing = h;
-        break;
+    if (upcomingScheduled.isNotEmpty) {
+      nextHearing = upcomingScheduled.first;
+    } else {
+      final scheduledAny = hearings.where((h) => h.status.toLowerCase() == 'scheduled').toList();
+      if (scheduledAny.isNotEmpty) {
+        nextHearing = scheduledAny.first;
+      } else if (hearings.isNotEmpty) {
+        nextHearing = hearings.first;
       }
-    }
-    if (nextHearing == null && hearings.isNotEmpty) {
-      nextHearing = hearings.first;
     }
 
     return RefreshIndicator(
@@ -128,8 +140,8 @@ class _UserDashboardViewState extends State<UserDashboardView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. Unsent Offline Drafts Reminder Banner (Task 27)
-            if (_unsentDraftsCount > 0) ...[
-              _buildDraftsReminderBanner(theme, isDark, isFil),
+            if (effectiveDraftsCount > 0) ...[
+              _buildDraftsReminderBanner(theme, isDark, isFil, effectiveDraftsCount),
               const SizedBox(height: AppTheme.space16),
             ],
 
@@ -182,7 +194,7 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   }
 
   /// Drafts Reminder Banner (Task 27)
-  Widget _buildDraftsReminderBanner(ThemeData theme, bool isDark, bool isFil) {
+  Widget _buildDraftsReminderBanner(ThemeData theme, bool isDark, bool isFil, int count) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.space16),
       decoration: BoxDecoration(
@@ -210,8 +222,8 @@ class _UserDashboardViewState extends State<UserDashboardView> {
               children: [
                 Text(
                   isFil
-                      ? 'Mayroon kang $_unsentDraftsCount hindi pa nai-sync na reklamo'
-                      : 'You have $_unsentDraftsCount unsent offline complaint${_unsentDraftsCount > 1 ? 's' : ''}',
+                      ? 'Mayroon kang $count hindi pa nai-sync na reklamo'
+                      : 'You have $count unsent offline complaint${count > 1 ? 's' : ''}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -235,8 +247,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
           ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),
             child: ElevatedButton(
-              onPressed: () {
-                context.push('/offline-drafts');
+              onPressed: () async {
+                await context.push('/offline-drafts');
+                if (mounted) _checkDrafts();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.warning,
@@ -441,7 +454,9 @@ class _UserDashboardViewState extends State<UserDashboardView> {
                           Icon(Icons.access_time_rounded, size: 14, color: isDark ? AppTheme.textHintDark : AppTheme.textHintLight),
                           const SizedBox(width: AppTheme.space4),
                           Text(
-                            DateFormat('hh:mm a').format(hearing.hearingDate),
+                            hearing.hearingTime.isNotEmpty
+                                ? hearing.hearingTime
+                                : DateFormat('hh:mm a').format(hearing.hearingDate),
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
@@ -672,38 +687,52 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   }
 
   Widget _buildEmergencyContacts(ThemeData theme, bool isDark, bool isFil) {
-    return Container(
-      padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space24),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.emergency_rounded, size: 18, color: AppTheme.brand500),
-              const SizedBox(width: AppTheme.space8),
-              Text(
-                isFil ? 'Mga Hotline sa Emergency' : 'Emergency Hotlines',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
-                ),
-              ),
-            ],
+    return InkWell(
+      onTap: () => EmergencyHotlinesModal.show(context),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space24),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+            width: 1,
           ),
-          const SizedBox(height: AppTheme.space12),
-          _contactItem(Icons.local_police_outlined, 'Barangay Rosario Tanod', '0917-889-0123', isDark),
-          _contactItem(Icons.local_police_rounded, 'Santiago City PNP', '(078) 305-1234', isDark),
-          _contactItem(Icons.local_fire_department_outlined, 'BFP Fire Station', '(078) 305-2222', isDark),
-        ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.emergency_rounded, size: 18, color: AppTheme.brand500),
+                const SizedBox(width: AppTheme.space8),
+                Expanded(
+                  child: Text(
+                    isFil ? 'Mga Hotline sa Emergency' : 'Emergency Hotlines',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                    ),
+                  ),
+                ),
+                Text(
+                  isFil ? 'Tumawag >' : 'Call >',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppTheme.crimsonDarkAccent : AppTheme.brand500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.space12),
+            _contactItem(Icons.local_police_outlined, 'Barangay Rosario Tanod', '0917-123-4567', isDark),
+            _contactItem(Icons.local_police_rounded, 'Santiago City PNP', '0998-598-7654 / 117', isDark),
+            _contactItem(Icons.local_fire_department_outlined, 'BFP Fire Station', '0915-234-5678 / 160', isDark),
+          ],
+        ),
       ),
     );
   }
@@ -736,52 +765,71 @@ class _UserDashboardViewState extends State<UserDashboardView> {
   );
 
   Widget _buildProfileCompleteness(ThemeData theme, bool isRegistered, bool isDark, bool isFil) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space24),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-          width: 1,
+    return InkWell(
+      onTap: isRegistered
+          ? null
+          : () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ResidentRegistrationScreen()),
+              );
+              if (mounted) {
+                context.read<AuthProvider>().refreshProfile();
+              }
+            },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(_narrow ? AppTheme.space16 : AppTheme.space24),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+            width: 1,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isRegistered ? Icons.verified_user_rounded : Icons.pending_actions_rounded,
-            size: 32,
-            color: isRegistered ? AppTheme.success : AppTheme.warning,
-          ),
-          const SizedBox(width: AppTheme.space12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isRegistered
-                      ? (isFil ? 'Rehistradong Residente' : 'Verified Resident')
-                      : (isFil ? 'Kailangang Magparehistro' : 'Profile Setup Required'),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
-                  ),
-                ),
-                Text(
-                  isRegistered
-                      ? (isFil ? 'Opisyal na nakatala sa Rosario Registry' : 'Official record in Rosario Registry')
-                      : (isFil ? 'I-link ang account para makapag-blotter' : 'Link your resident profile to file blotter reports'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                  ),
-                ),
-              ],
+        child: Row(
+          children: [
+            Icon(
+              isRegistered ? Icons.verified_user_rounded : Icons.pending_actions_rounded,
+              size: 32,
+              color: isRegistered ? AppTheme.success : AppTheme.warning,
             ),
-          ),
-        ],
+            const SizedBox(width: AppTheme.space12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isRegistered
+                        ? (isFil ? 'Rehistradong Residente' : 'Verified Resident')
+                        : (isFil ? 'Kailangang Magparehistro' : 'Profile Setup Required'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                    ),
+                  ),
+                  Text(
+                    isRegistered
+                        ? (isFil ? 'Opisyal na nakatala sa Rosario Registry' : 'Official record in Rosario Registry')
+                        : (isFil ? 'I-tap upang i-link ang iyong Resident Profile' : 'Tap to link your resident profile to file blotter reports'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isRegistered)
+              Icon(
+                Icons.chevron_right_rounded,
+                color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+              ),
+          ],
+        ),
       ),
     );
   }

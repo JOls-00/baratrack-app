@@ -38,8 +38,8 @@ class ComplaintSubmittedScreen extends StatelessWidget {
       return caseNumber!;
     }
     final year = DateTime.now().year;
-    final idStr = complaintId.abs().toString().padLeft(4, '0');
-    return 'ROS-$year-$idStr';
+    final idStr = complaintId.abs().toString().padLeft(5, '0');
+    return 'CMP-$year-$idStr';
   }
 
   String _formattedSummary(bool isFil) {

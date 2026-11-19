@@ -60,9 +60,9 @@ class _CaseListScreenState extends State<CaseListScreen> {
     super.dispose();
   }
 
-  void _applySearch() {
+  Future<void> _applySearch() {
     final statusParam = _selectedStatus == 'All' ? null : _selectedStatus;
-    context.read<CaseProvider>().fetchCases(
+    return context.read<CaseProvider>().fetchCases(
       query: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
       status: statusParam,
     );
@@ -144,6 +144,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                   ),
                   onSubmitted: (_) => _applySearch(),
                   onChanged: (val) {
+                    setState(() {});
                     if (val.isEmpty) _applySearch();
                   },
                 ),
@@ -197,7 +198,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                                 .map((c) => DropdownMenuItem(
                                       value: c,
                                       child: Text(
-                                        c == 'All' ? 'Lahat ng Kategorya' : c,
+                                        c == 'All' ? (isFil ? 'Lahat ng Kategorya' : 'All Categories') : c,
                                         style: const TextStyle(fontSize: 12),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -228,7 +229,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                             Icon(_sortNewest ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded, size: 14),
                             const SizedBox(width: 4),
                             Text(
-                              _sortNewest ? 'Pinakabago' : 'Pinakaluma',
+                              _sortNewest ? (isFil ? 'Pinakabago' : 'Newest') : (isFil ? 'Pinakaluma' : 'Oldest'),
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                             ),
                           ],
@@ -249,7 +250,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
                     child: ListSkeletonPlaceholder(itemCount: 5),
                   )
                 : RefreshIndicator(
-                    onRefresh: () async => _applySearch(),
+                    onRefresh: _applySearch,
                     child: displayCases.isEmpty
                         ? EmptyStateView(
                             icon: Icons.folder_open_rounded,

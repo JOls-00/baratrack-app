@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/resident_repository.dart';
@@ -32,7 +33,8 @@ class AuthProvider extends ChangeNotifier {
 
   void _updateStatus(AuthStatus newStatus) {
     _status = newStatus;
-    // Sync with router notifier
+    // Sync with router notifiers
+    AppRouter.roleNotifier.value = _user?.role;
     AppRouter.authNotifier.value = newStatus;
     notifyListeners();
   }
@@ -260,10 +262,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       final updatedUser = await _userRepository.updateProfile(_user!.id, {
         'name': name,
-        'email': email,
         'contact_number': contact,
         'address': address,
-        'birth_date': birthDate?.toIso8601String(),
+        if (birthDate != null) 'birth_date': DateFormat('yyyy-MM-dd').format(birthDate),
         if (avatarBase64 != null) 'avatar_base64': avatarBase64,
       });
 

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../data/models/resident_model.dart';
 import '../../../data/models/case_model.dart';
 import '../../../data/repositories/case_repository.dart';
+import '../../../data/repositories/resident_repository.dart';
 import '../../providers/resident_provider.dart';
 import '../../providers/documents_provider.dart';
 import '../../../config/app_constants.dart';
@@ -24,6 +25,8 @@ class _ResidentDetailScreenState extends State<ResidentDetailScreen> {
   List<CaseModel> _residentCases = [];
   bool _isLoadingCases = true;
   String? _casesError;
+  ResidentModel? _fallbackResident;
+  String? _residentError;
 
   @override
   void initState() {
@@ -32,8 +35,26 @@ class _ResidentDetailScreenState extends State<ResidentDetailScreen> {
       if (mounted) {
         context.read<DocumentsProvider>().fetchDocuments(residentId: widget.residentId);
         _fetchResidentCases();
+        _ensureResidentLoaded();
       }
     });
+  }
+
+  Future<void> _ensureResidentLoaded() async {
+    final provider = context.read<ResidentProvider>();
+    if (provider.residents.any((r) => r.id == widget.residentId)) return;
+    try {
+      final repo = context.read<ResidentRepository>();
+      final r = await repo.getResidentDetails(widget.residentId);
+      if (!mounted) return;
+      setState(() {
+        _fallbackResident = r;
+        _residentError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _residentError = e.toString());
+    }
   }
 
   Future<void> _fetchResidentCases() async {
@@ -68,13 +89,39 @@ class _ResidentDetailScreenState extends State<ResidentDetailScreen> {
     
     final resident = residentProvider.residents.firstWhere(
       (r) => r.id == widget.residentId,
-      orElse: () => ResidentModel(
+      orElse: () => _fallbackResident ?? ResidentModel(
         id: 0, firstName: 'Loading', lastName: '...', gender: '', 
         birthDate: DateTime.now(), contact: '', address: '', zone: '', createdAt: DateTime.now()
       ),
     );
 
     if (resident.id == 0) {
+      if (_residentError != null) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Resident')),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  Text('Unable to load resident.\n$_residentError', textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() => _residentError = null);
+                      _ensureResidentLoaded();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -189,7 +236,7 @@ class _ResidentDetailScreenState extends State<ResidentDetailScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.description_outlined, color: Colors.blue),
                   title: Text(doc['type'] ?? 'Official Document', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Issued: ${doc['created_at'] != null ? DateFormat('MMM dd, yyyy').format(DateTime.parse(doc['created_at'])) : 'N/A'} • ${doc['status'] ?? 'Active'}'),
+                  subtitle: Text('Issued: ${(doc['issued_at'] ?? doc['created_at']) != null ? DateFormat('MMM dd, yyyy').format(DateTime.tryParse((doc['issued_at'] ?? doc['created_at']).toString()) ?? DateTime.now()) : 'N/A'} • ${doc['status'] ?? 'Active'}'),
                   trailing: IconButton(
                     icon: const Icon(Icons.open_in_new, size: 20),
                     onPressed: () => _viewFile(doc['file_path']),
@@ -228,12 +275,14 @@ class _ResidentDetailScreenState extends State<ResidentDetailScreen> {
         children: [
           Icon(icon, size: 20, color: Colors.blueGrey),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ],
+            ),
           )
         ],
       ),
@@ -297,7 +346,7 @@ class _ResidentDetailScreenState extends State<ResidentDetailScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   title: Row(
                     children: [
-                      Text(c.caseNumber, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Flexible(child: Text(c.caseNumber, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
                       const SizedBox(width: 8),
                       if (c.residentRole != null) ...[
                         Chip(
@@ -437,7 +486,7 @@ class _IssueDocumentModalState extends State<_IssueDocumentModal> {
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'png', 'doc', 'docx'],
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
     );
     if (result != null) {
       setState(() => _selectedFile = result.files.single);
@@ -475,7 +524,7 @@ class _IssueDocumentModalState extends State<_IssueDocumentModal> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Column(
@@ -490,7 +539,7 @@ class _IssueDocumentModalState extends State<_IssueDocumentModal> {
             const Text('Document Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _selectedType,
+              initialValue: _selectedType,
               items: _types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
               onChanged: (v) => setState(() => _selectedType = v!),
             ),
@@ -508,7 +557,7 @@ class _IssueDocumentModalState extends State<_IssueDocumentModal> {
                   children: [
                     Icon(_selectedFile == null ? Icons.upload_file : Icons.check_circle, color: _selectedFile == null ? Colors.grey : Colors.green),
                     const SizedBox(width: 12),
-                    Text(_selectedFile?.name ?? 'Choose File (PDF/Image)'),
+                    Flexible(child: Text(_selectedFile?.name ?? 'Choose File (PDF/Image)', overflow: TextOverflow.ellipsis)),
                   ],
                 ),
               ),

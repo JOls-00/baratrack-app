@@ -135,7 +135,7 @@ class _MyComplaintsViewState extends State<MyComplaintsView> {
                           itemCount: complaints.length,
                           itemBuilder: (context, index) {
                             final c = complaints[index];
-                            final displayId = c.caseNumber ?? "CMP-${c.id.toString().padLeft(3, '0')}";
+                            final displayId = c.caseNumber ?? "CMP-${c.dateFiled.year}-${c.id.abs().toString().padLeft(5, '0')}";
                             final isCase = c.caseId != null;
                             final canAttach = c.status != 'Settled' && c.status != 'Closed' && c.status != 'Dismissed';
 

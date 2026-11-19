@@ -466,6 +466,12 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
         ),
       ),
     );
+    Future.delayed(const Duration(milliseconds: 500), () {
+      complainantNameCtrl.dispose();
+      respondentNameCtrl.dispose();
+      narrativeCtrl.dispose();
+      locationCtrl.dispose();
+    });
   }
 
   Future<void> _queueCaseNote(String caseNumber, dynamic caseId, String updatedAt) async {
@@ -513,6 +519,7 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
         ],
       ),
     );
+    Future.delayed(const Duration(milliseconds: 500), noteCtrl.dispose);
   }
 
   Future<void> _queueStatusChange(String caseNumber, dynamic caseId, String updatedAt) async {
@@ -577,6 +584,7 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
         ),
       ),
     );
+    Future.delayed(const Duration(milliseconds: 500), remarksCtrl.dispose);
   }
 
   Future<void> _queueHearingOutcome(String caseNumber, dynamic hearingId) async {
@@ -641,5 +649,6 @@ class _AdminOfflineHomeState extends State<AdminOfflineHome> with SingleTickerPr
         ),
       ),
     );
+    Future.delayed(const Duration(milliseconds: 500), notesCtrl.dispose);
   }
 }

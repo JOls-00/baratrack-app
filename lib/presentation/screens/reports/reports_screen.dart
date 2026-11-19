@@ -107,7 +107,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: isMobile ? 12 : 16,
       mainAxisSpacing: isMobile ? 12 : 16,
-      childAspectRatio: isMobile ? 1.6 : 2,
+      childAspectRatio: isMobile ? 1.25 : 2,
       children: [
         _statCard(theme, 'Total Residents', '${totals['residents'] ?? 0}', Icons.people, Colors.teal),
         _statCard(theme, 'Total Cases', '${totals['cases'] ?? 0}', Icons.folder, Colors.blue),
@@ -119,28 +119,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _statCard(ThemeData theme, String title, String value, IconData icon, Color color) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: color, size: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 220;
+          final iconBox = Container(
+            padding: EdgeInsets.all(compact ? 8 : 12),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: compact ? 20 : 24),
+          );
+          final texts = [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value, style: TextStyle(fontSize: compact ? 20 : 24, fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(width: 16),
-            Expanded(
+            Text(title, style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: compact ? 11 : 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+          ];
+          if (compact) {
+            return Padding(
+              padding: const EdgeInsets.all(10.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                  Text(title, style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12), overflow: TextOverflow.ellipsis),
-                ],
+                children: [iconBox, const SizedBox(height: 6), ...texts],
               ),
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                iconBox,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: texts,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -345,7 +366,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(typeName, style: const TextStyle(fontSize: 12)),
+                          Expanded(child: Text(typeName, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
+                          const SizedBox(width: 8),
                           Text('$count', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ],
                       ),

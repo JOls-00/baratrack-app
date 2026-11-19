@@ -18,8 +18,11 @@ class CaseRepository {
       });
       
       final data = response.data['data'] as List;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('offline_cached_cases', jsonEncode(data));
+      if ((query == null || query.trim().isEmpty) && (status == null || status == 'All')) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('offline_cached_cases', jsonEncode(data));
+        await prefs.setString('offline_cache_timestamp', DateTime.now().toIso8601String());
+      }
 
       return data.map((json) => CaseModel.fromJson(json)).toList();
     } catch (e) {

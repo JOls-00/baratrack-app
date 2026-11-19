@@ -32,7 +32,7 @@ class AuthShell extends StatelessWidget {
 
     Widget formArea() => Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.fromLTRB(24, 64, 24, 32),
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: formWidth),
               child: Column(

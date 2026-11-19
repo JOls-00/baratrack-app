@@ -42,16 +42,12 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
 
   Future<void> _startUpdate() async {
     if (kIsWeb) {
-      setState(() {
-        _isDownloading = true;
-        _progress = 1.0;
-        _progressText = '100%';
-        _downloadedMbText = 'Refreshing web app...';
-      });
-      await Future.delayed(const Duration(milliseconds: 1000));
       final uri = Uri.parse(widget.info.downloadUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+      if (mounted) {
+        Navigator.of(context).pop();
       }
       return;
     }
@@ -138,11 +134,12 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
     }
   }
 
-  List<Widget> _buildFeatureList(String raw, Color primary) {
+  List<Widget> _buildFeatureList(BuildContext context, String raw, Color primary) {
+    final textColor = Theme.of(context).colorScheme.onSurface;
     final parts = raw.split(RegExp(r'[,;\n]')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
     if (parts.isEmpty) {
       return [
-        const Text('Performance improvements and bug fixes.', style: TextStyle(fontSize: 12, color: Colors.black87)),
+        Text('Performance improvements and bug fixes.', style: TextStyle(fontSize: 12, color: textColor)),
       ];
     }
     return parts.map((part) {
@@ -169,7 +166,7 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
             Expanded(
               child: Text(
                 part,
-                style: const TextStyle(fontSize: 12, color: Colors.black87, height: 1.3),
+                style: TextStyle(fontSize: 12, color: textColor, height: 1.3),
               ),
             ),
           ],
@@ -245,7 +242,7 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
                 _isInstalling
                     ? 'Launching Android Package Installer...'
                     : 'Downloading latest update directly to your phone...',
-                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
               ),
               const SizedBox(height: 16),
               ClipRRect(
@@ -326,21 +323,21 @@ class _UpdatePromptDialogState extends State<UpdatePromptDialog> {
                 ),
               ],
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 "What's New in This Version:",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface),
               ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _buildFeatureList(widget.info.releaseNotes, primary),
+                  children: _buildFeatureList(context, widget.info.releaseNotes, primary),
                 ),
               ),
               if (widget.info.forceUpdate) ...[
